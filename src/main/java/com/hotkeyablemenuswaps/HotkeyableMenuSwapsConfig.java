@@ -575,4 +575,119 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	{
 		return Keybind.NOT_SET;
 	}
+
+	
+
+	@ConfigSection(
+		name = "Max Cape",
+		description = "Max Cape options.",
+		position = 6,
+		closedByDefault = true
+	)
+	String maxCapeSection = "maxCape";
+
+	@ConfigItem(
+		keyName = "maxCapeCraftingGuildSwapHotKey",
+		name = "Crafting Guild",
+		description = "The configured default crafting guild key",
+		section = maxCapeSection,
+		position = 0
+	)
+	default Keybind maxCapeCraftingGuildSwapHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "maxCapeWarriorsGuildSwapHotKey", 
+		name = "Warriors Guild", 
+		description = "The configured default Warriors guild key", 
+		section = maxCapeSection, 
+		position = 1
+		)
+	default Keybind maxCapeWarriorsGuildSwapHotKey() {
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "maxCapeTelePOHSwapHotKey", 
+		name = "Tele to POH", 
+		description = "The configured default Tele to POH key", 
+		section = maxCapeSection, 
+		position = 2
+		)
+	default Keybind maxCapeTelePOHSwapHotKey() {
+		return Keybind.NOT_SET;
+	}
+
+	
+	
+
+	@ConfigSection(
+		name = "Book of the dead",
+		description = "Book of the dead options.",
+		position = 7,
+		closedByDefault = true
+	)
+	String botdSection = "botd";
+
+	@ConfigItem(
+		keyName = "botdHosidiusHotKey",
+		name = "Hosidius",
+		description = "The configured key for Hosidius teleport",
+		section = botdSection,
+		position = 0
+	)
+	default Keybind botdHosidiusHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "botdPiscariliusHotKey",
+		name = "Piscarilius",
+		description = "The configured key for Piscarilius teleport",
+		section = botdSection,
+		position = 0
+	)
+	default Keybind botdPiscariliusHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "botdShayzeinHotKey",
+		name = "Shayzein",
+		description = "The configured key for Shayzein teleport",
+		section = botdSection,
+		position = 0
+	)
+	default Keybind botdShayzeinHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "botdLovakengjHotKey",
+		name = "Lovakengj",
+		description = "The configured key for Lovakengj teleport",
+		section = botdSection,
+		position = 0
+	)
+	default Keybind botdLovakengjHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
+
+	@ConfigItem(
+		keyName = "botdArceuusHotKey",
+		name = "Arceuus",
+		description = "The configured key for Arceuus teleport",
+		section = botdSection,
+		position = 0
+	)
+	default Keybind botdArceuusHotKey()
+	{
+		return Keybind.NOT_SET;
+	}
 }

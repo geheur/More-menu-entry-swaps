@@ -104,6 +104,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private volatile BankSwapMode currentBankModeSwap;
 	private volatile OccultAltarSwap hotkeyOccultAltarSwap;
 	private volatile TreeRingSwap hotkeyTreeRingSwap;
+	private volatile MaxCapeSwap hotkeyMaxCapeSwap;
+	private volatile BookOfTheDeadSwap hotkeyBOTDSwap;
 	private volatile boolean swapUse;
 	private volatile boolean swapJewelleryBox;
 	private volatile PortalNexusSwap swapPortalNexus;
@@ -147,6 +149,22 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			swapContains(option, alwaysTrue(), "last-destination", () -> getCurrentTreeRingSwap() == TreeRingSwap.LAST_DESTINATION);
 			swapContains(option, alwaysTrue(), "configure", () -> getCurrentTreeRingSwap() == TreeRingSwap.CONFIGURE);
 			swapContains(option, alwaysTrue(), "tree", () -> getCurrentTreeRingSwap() == TreeRingSwap.TREE);
+		}
+
+		for (String option : new String[] { "crafting guild", "warriors' guild", "fishing teleports", "remove",
+				"tele to poh", "poh portals", "other teleports", "spellbook", "features", "examine" }) {
+			swapContains(option, "max cape"::equals, "crafting guild", () -> getCurrentMaxCapeSwap() == MaxCapeSwap.CRAFTING_GUILD);
+			swapContains(option, "max cape"::equals, "warriors' guild", () -> getCurrentMaxCapeSwap() == MaxCapeSwap.WARRIORS_GUILD);
+			swapContains(option, "max cape"::equals, "tele to poh", () -> getCurrentMaxCapeSwap() == MaxCapeSwap.TELE_POH);
+		}
+		
+		for (String option : new String[] { "lunch by the lancalliums",
+"the fisher's flute", "history and hearsay", "jewellery of jubilation", "a dark disposition", "check", "remove", "examine" }) {
+			swapContains(option, "book of the dead"::equals, "lunch by the lancalliums", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.HOSIDIUS);
+			swapContains(option, "book of the dead"::equals, "the fisher's flute", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.PISCARILIUS);
+			swapContains(option, "book of the dead"::equals, "history and hearsay", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.SHAYZEIN);
+			swapContains(option, "book of the dead"::equals, "jewellery of jubilation", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.LOVAKENGJ);
+			swapContains(option, "book of the dead"::equals, "a dark disposition", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.ARCEUUS);
 		}
 	}
 
@@ -293,6 +311,14 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		return hotkeyTreeRingSwap;
 	}
 
+	private MaxCapeSwap getCurrentMaxCapeSwap() {
+		return hotkeyMaxCapeSwap;
+	}
+
+	private BookOfTheDeadSwap getCurrentBOTDSwap() {
+		return hotkeyBOTDSwap;
+	}
+
 	@Override
 	public void keyTyped(KeyEvent e) {
 		// not used.
@@ -345,6 +371,20 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		for (TreeRingSwap treeRingSwap : TreeRingSwap.values()) {
 			if ((treeRingSwap.getKeybind(config)).matches(e)) {
 				hotkeyTreeRingSwap = treeRingSwap;
+				break;
+			}
+		}
+
+		for (MaxCapeSwap maxCapeSwap : MaxCapeSwap.values()) {
+			if ((maxCapeSwap.getKeybind(config)).matches(e)) {
+				hotkeyMaxCapeSwap = maxCapeSwap;
+				break;
+			}
+		}
+
+		for (BookOfTheDeadSwap botdSwap : BookOfTheDeadSwap.values()) {
+			if ((botdSwap.getKeybind(config)).matches(e)) {
+				hotkeyBOTDSwap = botdSwap;
 				break;
 			}
 		}
@@ -403,6 +443,20 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 
+		for (MaxCapeSwap maxCapeSwap : MaxCapeSwap.values()) {
+			if ((maxCapeSwap.getKeybind(config)).matches(e) && maxCapeSwap == hotkeyMaxCapeSwap) {
+				hotkeyMaxCapeSwap = null;
+				break;
+			}
+		}
+
+		for (BookOfTheDeadSwap botdSwap : BookOfTheDeadSwap.values()) {
+			if ((botdSwap.getKeybind(config)).matches(e) && botdSwap == hotkeyBOTDSwap) {
+				hotkeyBOTDSwap = null;
+				break;
+			}
+		}
+
 		for (PortalNexusSwap option : PortalNexusSwap.values()) {
 			if ((option.getKeybind(config)).matches(e) && option == swapPortalNexus) {
 				swapPortalNexus = null;
@@ -447,6 +501,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		currentBankModeSwap = BankSwapMode.OFF;
 		hotkeyOccultAltarSwap = null;
 		hotkeyTreeRingSwap = null;
+		hotkeyMaxCapeSwap = null;
+		hotkeyBOTDSwap = null;
 		swapUse = false;
 		swapJewelleryBox = false;
 		swapPortalNexus = null;
