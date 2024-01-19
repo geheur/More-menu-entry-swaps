@@ -159,8 +159,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 
 		Predicate<String> botdMatcher = s -> s.equals("book of the dead") || s.equals("kharedst's memoirs");
-		for (String option : new String[] { "lunch by the lancalliums",
-"the fisher's flute", "history and hearsay", "jewellery of jubilation", "a dark disposition", "check", "remove", "examine" }) {
+		for (String option : new String[] { "lunch by the lancalliums", "the fisher's flute", "history and hearsay",
+				"jewellery of jubilation", "a dark disposition", "check", "remove", "examine" }) {
 			swapContains(option, botdMatcher, "lunch by the lancalliums", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.HOSIDIUS);
 			swapContains(option, botdMatcher, "the fisher's flute", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.PISCARILIUS);
 			swapContains(option, botdMatcher, "history and hearsay", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.SHAYZEIN);
