@@ -576,11 +576,11 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return Keybind.NOT_SET;
 	}
 
-	
+
 
 	@ConfigSection(
-		name = "Max Cape",
-		description = "Max Cape options.",
+		name = "Max Cape (equipped)",
+		description = "Max Cape hotkeys",
 		position = 6,
 		closedByDefault = true
 	)
@@ -589,7 +589,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "maxCapeCraftingGuildSwapHotKey",
 		name = "Crafting Guild",
-		description = "The configured default crafting guild key",
+		description = "",
 		section = maxCapeSection,
 		position = 0
 	)
@@ -600,9 +600,9 @@ public interface HotkeyableMenuSwapsConfig extends Config
 
 	@ConfigItem(
 		keyName = "maxCapeWarriorsGuildSwapHotKey", 
-		name = "Warriors Guild", 
-		description = "The configured default Warriors guild key", 
-		section = maxCapeSection, 
+		name = "Warriors Guild",
+		description = "",
+		section = maxCapeSection,
 		position = 1
 		)
 	default Keybind maxCapeWarriorsGuildSwapHotKey() {
@@ -611,21 +611,20 @@ public interface HotkeyableMenuSwapsConfig extends Config
 
 	@ConfigItem(
 		keyName = "maxCapeTelePOHSwapHotKey", 
-		name = "Tele to POH", 
-		description = "The configured default Tele to POH key", 
-		section = maxCapeSection, 
+		name = "Tele to POH",
+		description = "",
+		section = maxCapeSection,
 		position = 2
 		)
 	default Keybind maxCapeTelePOHSwapHotKey() {
 		return Keybind.NOT_SET;
 	}
 
-	
-	
+
 
 	@ConfigSection(
-		name = "Book of the dead",
-		description = "Book of the dead options.",
+		name = "Book of the dead (equipped)",
+		description = "Book of the dead hotkeys",
 		position = 7,
 		closedByDefault = true
 	)
@@ -634,7 +633,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "botdHosidiusHotKey",
 		name = "Hosidius",
-		description = "The configured key for Hosidius teleport",
+		description = "",
 		section = botdSection,
 		position = 0
 	)
@@ -646,7 +645,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "botdPiscariliusHotKey",
 		name = "Piscarilius",
-		description = "The configured key for Piscarilius teleport",
+		description = "",
 		section = botdSection,
 		position = 0
 	)
@@ -658,7 +657,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "botdShayzeinHotKey",
 		name = "Shayzein",
-		description = "The configured key for Shayzein teleport",
+		description = "",
 		section = botdSection,
 		position = 0
 	)
@@ -670,7 +669,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "botdLovakengjHotKey",
 		name = "Lovakengj",
-		description = "The configured key for Lovakengj teleport",
+		description = "",
 		section = botdSection,
 		position = 0
 	)
@@ -682,7 +681,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "botdArceuusHotKey",
 		name = "Arceuus",
-		description = "The configured key for Arceuus teleport",
+		description = "",
 		section = botdSection,
 		position = 0
 	)
