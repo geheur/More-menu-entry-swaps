@@ -157,14 +157,15 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			swapContains(option, "max cape"::equals, "warriors' guild", () -> getCurrentMaxCapeSwap() == MaxCapeSwap.WARRIORS_GUILD);
 			swapContains(option, "max cape"::equals, "tele to poh", () -> getCurrentMaxCapeSwap() == MaxCapeSwap.TELE_POH);
 		}
-		
+
+		Predicate<String> botdMatcher = s -> s.equals("book of the dead") || s.equals("kharedst's memoirs");
 		for (String option : new String[] { "lunch by the lancalliums",
 "the fisher's flute", "history and hearsay", "jewellery of jubilation", "a dark disposition", "check", "remove", "examine" }) {
-			swapContains(option, "book of the dead"::equals, "lunch by the lancalliums", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.HOSIDIUS);
-			swapContains(option, "book of the dead"::equals, "the fisher's flute", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.PISCARILIUS);
-			swapContains(option, "book of the dead"::equals, "history and hearsay", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.SHAYZEIN);
-			swapContains(option, "book of the dead"::equals, "jewellery of jubilation", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.LOVAKENGJ);
-			swapContains(option, "book of the dead"::equals, "a dark disposition", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.ARCEUUS);
+			swapContains(option, botdMatcher, "lunch by the lancalliums", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.HOSIDIUS);
+			swapContains(option, botdMatcher, "the fisher's flute", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.PISCARILIUS);
+			swapContains(option, botdMatcher, "history and hearsay", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.SHAYZEIN);
+			swapContains(option, botdMatcher, "jewellery of jubilation", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.LOVAKENGJ);
+			swapContains(option, botdMatcher, "a dark disposition", () -> getCurrentBOTDSwap() == BookOfTheDeadSwap.ARCEUUS);
 		}
 	}
 
