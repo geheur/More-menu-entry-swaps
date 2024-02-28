@@ -45,6 +45,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemID;
@@ -64,6 +65,7 @@ import net.runelite.client.util.Text;
 import net.runelite.client.util.WildcardMatcher;
 
 // Mostly copypasted stuff from runelite's ground items plugin. Used to access highlighted and hidden item lists.
+@Slf4j
 public class GroundItemsStuff
 {
 	@Inject private ItemManager itemManager;
@@ -91,15 +93,18 @@ public class GroundItemsStuff
 		Tile tile = itemSpawned.getTile();
 
 		GroundItem groundItem = buildGroundItem(tile, item);
+		// log.debug("Ground item spawned: {}", groundItem.getName());
 		GroundItem existing = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (existing != null)
 		{
 			existing.setQuantity(existing.getQuantity() + groundItem.getQuantity());
 			// The spawn time remains set at the oldest spawn
+			// log.debug("Updated ground item in collectedGroundItems: {}", groundItem.getName());
 		}
 		else
 		{
 			collectedGroundItems.put(tile.getWorldLocation(), item.getId(), groundItem);
+			// log.debug("Added ground item to collectedGroundItems: {}", groundItem.getName());
 		}
 	}
 
@@ -196,7 +201,7 @@ public class GroundItemsStuff
 			.build();
 
 		// Update item price in case it is coins
-		if (realItemId == ItemID.COINS)
+		if (realItemId == ItemID.COINS_995)
 		{
 			groundItem.setHaPrice(1);
 			groundItem.setGePrice(1);
@@ -206,6 +211,7 @@ public class GroundItemsStuff
 			groundItem.setGePrice(itemManager.getItemPrice(realItemId));
 		}
 
+		log.debug("Built new ground item {}", groundItem);
 		return groundItem;
 	}
 
@@ -326,12 +332,13 @@ public class GroundItemsStuff
 		}
 	}
 
-	public void reloadGroundItemPluginLists(boolean highlightedList, boolean hiddenList, boolean listsChanged)
+	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean highlightedList, boolean hiddenList, boolean listsChanged)
 	{
-		if (highlightedList && highlightedItems == null || hiddenList && hiddenItems == null) {
+		if (shouldSortByPrice || highlightedList && highlightedItems == null || hiddenList && hiddenItems == null)
+		{
 			gameEventManager.simulateGameEvents(this);
 			eventBus.register(this);
-		} else if (!highlightedList && !hiddenList) {
+		} else if (!highlightedList && !hiddenList && !shouldSortByPrice) {
 			eventBus.unregister(this);
 			collectedGroundItems.clear();
 		}

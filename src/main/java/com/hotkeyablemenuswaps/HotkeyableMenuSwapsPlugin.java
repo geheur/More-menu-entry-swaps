@@ -49,6 +49,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.KeyCode;
@@ -89,6 +90,7 @@ import net.runelite.client.util.Text;
 	tags = {"entry", "swapper", "custom", "text"}
 )
 @PluginDependency(MenuEntrySwapperPlugin.class)
+@Slf4j
 public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 {
 	@Inject private Client client;
@@ -606,6 +608,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private Boolean[] groundItemSortNoted = new Boolean[0];
 	private Integer highlightedItemValue = null;
 	private Integer hiddenItemValue = null;
+	private GroundItemPriceSortMode groundItemsPriceSortMode = GroundItemPriceSortMode.DESCENDING;
 
 	private void reloadGroundItemSort() {
 		String s = config.groundItemSortCustomValues();
@@ -615,6 +618,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		List<Boolean> groundItemSortNoted = new ArrayList<>();
 		highlightedItemValue = null;
 		hiddenItemValue = null;
+		groundItemsPriceSortMode = config.groundItemsPriceSortMethod();
 		int defaultValue = Integer.MAX_VALUE;
 		for (String line : s.split("\n"))
 		{
@@ -670,12 +674,13 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		this.groundItemSortValues = groundItemSortValues.stream().mapToInt(i -> i).toArray();
 		this.groundItemSortNoted = groundItemSortNoted.toArray(new Boolean[groundItemSortNoted.size()]);
 
-		groundItemsStuff.reloadGroundItemPluginLists(highlightedItemValue != null, hiddenItemValue != null, false);
+		groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), highlightedItemValue != null, hiddenItemValue != null, false);
 	}
 
 	@Subscribe(priority = -1) // This will run after the normal menu entry swapper, so it won't interfere with this plugin.
 	public void onPostMenuSort(PostMenuSort e)
 	{
+		sortGroundItemsGE();
 		sortGroundItems();
 		customSwaps();
 
@@ -712,10 +717,60 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		private final int value;
 	}
 
+	private void sortGroundItemsGE() {
+		if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED)) return;
+		// log.debug("Sorting ground items according to GE value");
+
+		// find a group of contiguous ground items while recording the value of each entry, then sort the block of ground items.
+		MenuEntry[] menuEntries = client.getMenuEntries();
+		int groundItemBlockStart = -1;
+		List<MenuEntryWithValue> groundItemEntries = new ArrayList<>(menuEntries.length);
+		nextMenuEntry:
+		for (int i = 0; i < menuEntries.length; i++)
+		{
+			MenuEntry menuEntry = menuEntries[i];
+
+			// menu entry is not a ground item menu entry. This may be the end of a take menu entry block, so sort any take menu entries that have been collected so far.
+			if (menuEntry.getType().getId() < WIDGET_TARGET_ON_GROUND_ITEM.getId() || menuEntry.getType().getId() > GROUND_ITEM_FIFTH_OPTION.getId()) {
+				if (groundItemBlockStart != -1) {
+					groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+					for (int j = 0; j < groundItemEntries.size(); j++) {
+						menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
+					}
+					groundItemEntries.clear();
+					groundItemBlockStart = -1;
+				}
+				continue nextMenuEntry;
+			}
+
+			// menu entry is a ground item menu entry
+			if (groundItemBlockStart == -1) groundItemBlockStart = i;
+
+			GroundItem groundItem = getGroundItemFromScene(menuEntry);
+
+			if (groundItem != null && groundItem.getGePrice() > -1) {
+				groundItemEntries.add(new MenuEntryWithValue(menuEntry, Integer.max(groundItem.getGePrice(), groundItem.getHaPrice())));
+				// log.debug("Added ground item entry {} with the value {}", groundItem, Integer.max(groundItem.getGePrice(), groundItem.getHaPrice()));
+				continue nextMenuEntry;
+			}
+		}
+		if (groundItemBlockStart != -1) {
+			if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DESCENDING)) {
+				groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+			} else {
+				groundItemEntries.sort(Comparator.comparing(e -> e.value, Comparator.reverseOrder()));
+			}
+			for (int j = 0; j < groundItemEntries.size(); j++) {
+				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
+			}
+		}
+		client.setMenuEntries(menuEntries);
+	}
+
 	private void sortGroundItems()
 	{
 		if (groundItemSortTypes.length == 0 && highlightedItemValue == null && hiddenItemValue == null) return;
-
+		// log.debug("Sorting ground items based on list");
 		// find a group of contiguous ground items while recording the value of each entry, then sort the block of ground items.
 		MenuEntry[] menuEntries = client.getMenuEntries();
 		int groundItemBlockStart = -1;
@@ -757,10 +812,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				}
 			}
 			if (highlightedItemValue != null || hiddenItemValue != null) {
-				int sceneX = menuEntry.getParam0();
-				int sceneY = menuEntry.getParam1();
-				final WorldPoint worldPoint = WorldPoint.fromScene(client, sceneX, sceneY, client.getPlane());
-				GroundItem groundItem = groundItemsStuff.collectedGroundItems.get(worldPoint, itemId);
+				GroundItem groundItem = getGroundItemFromScene(menuEntry);
 				NamedQuantity key = new NamedQuantity(groundItem.getName(), groundItem.getQuantity());
 				if (highlightedItemValue != null && groundItemsStuff.highlightedItems.getUnchecked(key) == Boolean.TRUE) {
 					groundItemEntries.add(new MenuEntryWithValue(menuEntry, highlightedItemValue));
@@ -780,6 +832,16 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		client.setMenuEntries(menuEntries);
+	}
+
+	private GroundItem getGroundItemFromScene(MenuEntry menuEntry) {
+		int sceneX = menuEntry.getParam0();
+		int sceneY = menuEntry.getParam1();
+		final WorldPoint worldPoint = WorldPoint.fromScene(client, sceneX, sceneY, client.getPlane());
+		int itemId = menuEntry.getIdentifier();
+		GroundItem groundItem = groundItemsStuff.collectedGroundItems.get(worldPoint, itemId);
+		// log.debug("[Ground Item Menu Entry] Scene ({}, {}, {}) at WorldPoint {} | Item: {}", sceneX, sceneY, client.getPlane(), worldPoint, groundItem);
+		return groundItem;
 	}
 
 	// Copy-pasted from the official runelite menu entry swapper plugin.
@@ -1132,7 +1194,10 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			reloadGroundItemSort();
 			examineCancelLateRemoval = config.examineCancelLateRemoval();
 		} else if (configChanged.getGroup().equals("grounditems") && (configChanged.getKey().equals("highlightedItems") || configChanged.getKey().equals("hiddenItems"))) {
-			groundItemsStuff.reloadGroundItemPluginLists(highlightedItemValue != null, hiddenItemValue != null, true);
+			if (configChanged.getKey().equals("groundItemsPriceSortMethod")) {
+				groundItemsPriceSortMode = config.groundItemsPriceSortMethod();
+			}
+			groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), highlightedItemValue != null, hiddenItemValue != null, true);
 		}
 	}
 

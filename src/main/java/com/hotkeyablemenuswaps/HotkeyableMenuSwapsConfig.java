@@ -126,6 +126,17 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return false;
 	}
 
+	@ConfigItem(
+		keyName = "groundItemsPriceSortMethod",
+		name = "Sort by price",
+		description = "Initially sorts the ground items by their max(GE Price, High Alch Price) price from most expensive to least expensive",
+		section = groundItemSortSection,
+		position = 3
+	)
+	default GroundItemPriceSortMode groundItemsPriceSortMethod() {
+		return GroundItemPriceSortMode.DISABLED;
+	}
+
 	@ConfigSection(name = "Bank", description = "All options that swap entries in the bank", position = 0, closedByDefault = true)
 	String bankSection = "bank";
 
