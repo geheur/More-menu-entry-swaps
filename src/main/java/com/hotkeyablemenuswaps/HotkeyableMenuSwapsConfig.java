@@ -126,6 +126,20 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return false;
 	}
 
+	@ConfigItem(
+		keyName = "groundItemsPriceSortMode",
+		name = "Price Sort",
+		description =
+			"Grand Exchange: Use Grand Exchange price<br>" +
+			"max(GE, High Alch): Use highest of Grand Exchange price and High Alchemy price" +
+			"Items you've entered into the ground item sort list will use that list's value instead.",
+		section = groundItemSortSection,
+		position = 3
+	)
+	default GroundItemPriceSortMode groundItemsPriceSortMode() {
+		return GroundItemPriceSortMode.DISABLED;
+	}
+
 	@ConfigSection(name = "Bank", description = "All options that swap entries in the bank", position = 0, closedByDefault = true)
 	String bankSection = "bank";
 

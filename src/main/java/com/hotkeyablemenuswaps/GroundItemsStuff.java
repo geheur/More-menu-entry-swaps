@@ -45,6 +45,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemID;
@@ -64,6 +65,7 @@ import net.runelite.client.util.Text;
 import net.runelite.client.util.WildcardMatcher;
 
 // Mostly copypasted stuff from runelite's ground items plugin. Used to access highlighted and hidden item lists.
+@Slf4j
 public class GroundItemsStuff
 {
 	@Inject private ItemManager itemManager;
@@ -80,6 +82,7 @@ public class GroundItemsStuff
 	{
 		if (event.getGameState() == GameState.LOADING)
 		{
+			// log.debug("[GIS-onGameStateChanged] Clearing collected ground items");
 			collectedGroundItems.clear();
 		}
 	}
@@ -96,10 +99,12 @@ public class GroundItemsStuff
 		{
 			existing.setQuantity(existing.getQuantity() + groundItem.getQuantity());
 			// The spawn time remains set at the oldest spawn
+			// log.debug("[GIS-onItemSpawned] Updated ground item in collectedGroundItems: {}", groundItem.getName());
 		}
 		else
 		{
 			collectedGroundItems.put(tile.getWorldLocation(), item.getId(), groundItem);
+			// log.debug("[GIS-onItemSpawned] Added ground item to collectedGroundItems: {}", groundItem.getName());
 		}
 	}
 
@@ -112,11 +117,13 @@ public class GroundItemsStuff
 		GroundItem groundItem = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (groundItem == null)
 		{
+			// log.debug("[GIS-onItemDespawned] Ground item despawned, but not found in collectedGroundItems: {}", itemManager.getItemComposition(item.getId()).getName());
 			return;
 		}
 
 		if (groundItem.getQuantity() <= item.getQuantity())
 		{
+			// log.debug("[GIS-onItemDespawned] Removed ground item from collectedGroundItems: {}", groundItem.getName());
 			collectedGroundItems.remove(tile.getWorldLocation(), item.getId());
 		}
 		else
@@ -126,6 +133,7 @@ public class GroundItemsStuff
 			// it is not known which item is picked up, so we invalidate the spawn
 			// time
 			groundItem.setSpawnTime(null);
+			// log.debug("[GIS-onItemDespawned] Updated ground item in collectedGroundItems: {} from {}->{]", groundItem.getName(), groundItem.getQuantity() + item.getQuantity(), groundItem.getQuantity());
 		}
 	}
 
@@ -141,6 +149,7 @@ public class GroundItemsStuff
 		GroundItem groundItem = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (groundItem != null)
 		{
+			// log.debug("[GIS-onItemQuantityChanged] Ground item quantity changed: {} from {}->{}", groundItem.getName(), oldQuantity, newQuantity);
 			groundItem.setQuantity(groundItem.getQuantity() + diff);
 		}
 	}
@@ -195,17 +204,22 @@ public class GroundItemsStuff
 			.stackable(itemComposition.isStackable())
 			.build();
 
-		// Update item price in case it is coins
-		if (realItemId == ItemID.COINS)
+		switch(realItemId)
 		{
-			groundItem.setHaPrice(1);
-			groundItem.setGePrice(1);
-		}
-		else
-		{
-			groundItem.setGePrice(itemManager.getItemPrice(realItemId));
+			case ItemID.COINS_995:
+				groundItem.setGePrice(1);
+				groundItem.setHaPrice(1);
+				break;
+			case ItemID.PLATINUM_TOKEN:
+				groundItem.setGePrice(1000);
+				groundItem.setHaPrice(1000);
+				break;
+			default:
+				groundItem.setGePrice(itemManager.getItemPrice(realItemId));
+				break;
 		}
 
+		// log.debug("Built new ground item {}", groundItem);
 		return groundItem;
 	}
 
@@ -326,14 +340,22 @@ public class GroundItemsStuff
 		}
 	}
 
-	public void reloadGroundItemPluginLists(boolean highlightedList, boolean hiddenList, boolean listsChanged)
+	private boolean registered = false;
+
+	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean highlightedList, boolean hiddenList, boolean listsChanged)
 	{
-		if (highlightedList && highlightedItems == null || hiddenList && hiddenItems == null) {
-			gameEventManager.simulateGameEvents(this);
-			eventBus.register(this);
-		} else if (!highlightedList && !hiddenList) {
+		if (highlightedList || hiddenList || shouldSortByPrice) {
+			if (!registered) {
+				gameEventManager.simulateGameEvents(this);
+				eventBus.register(this);
+				registered = true;
+				log.debug("Registered GroundItemsStuff");
+			}
+		} else {
 			eventBus.unregister(this);
+			registered = false;
 			collectedGroundItems.clear();
+			log.debug("Unregistered GroundItemsStuff");
 		}
 
 		if (highlightedList) {
