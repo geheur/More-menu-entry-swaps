@@ -608,7 +608,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private Boolean[] groundItemSortNoted = new Boolean[0];
 	private Integer highlightedItemValue = null;
 	private Integer hiddenItemValue = null;
-	private GroundItemPriceSortMode groundItemsPriceSortMode = GroundItemPriceSortMode.DESCENDING;
+	private GroundItemPriceSortMode groundItemsPriceSortMode = GroundItemPriceSortMode.DISABLED;
 
 	private void reloadGroundItemSort() {
 		String s = config.groundItemSortCustomValues();
@@ -618,7 +618,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		List<Boolean> groundItemSortNoted = new ArrayList<>();
 		highlightedItemValue = null;
 		hiddenItemValue = null;
-		groundItemsPriceSortMode = config.groundItemsPriceSortMethod();
+		groundItemsPriceSortMode = config.groundItemsPriceSortMode();
 		int defaultValue = Integer.MAX_VALUE;
 		for (String line : s.split("\n"))
 		{
@@ -680,7 +680,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Subscribe(priority = -1) // This will run after the normal menu entry swapper, so it won't interfere with this plugin.
 	public void onPostMenuSort(PostMenuSort e)
 	{
-		sortGroundItemsGE();
+		sortGroundItemsByPrice();
 		sortGroundItems();
 		customSwaps();
 
@@ -717,7 +717,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		private final int value;
 	}
 
-	private void sortGroundItemsGE() {
+	private void sortGroundItemsByPrice() {
 		if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED)) return;
 		// log.debug("Sorting ground items according to GE value");
 
@@ -748,18 +748,14 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			GroundItem groundItem = getGroundItemFromScene(menuEntry);
 
-			if (groundItem != null && groundItem.getGePrice() > -1) {
-				groundItemEntries.add(new MenuEntryWithValue(menuEntry, Integer.max(groundItem.getGePrice(), groundItem.getHaPrice())));
-				// log.debug("Added ground item entry {} with the value {}", groundItem, Integer.max(groundItem.getGePrice(), groundItem.getHaPrice()));
+			if (groundItem != null) {
+				groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
+				// log.debug("Added ground item entry {} with the {} value {}", groundItem, groundItemsPriceSortMode, groundItemsPriceSortMode.getItemPrice(groundItem));
 				continue nextMenuEntry;
 			}
 		}
 		if (groundItemBlockStart != -1) {
-			if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DESCENDING)) {
-				groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
-			} else {
-				groundItemEntries.sort(Comparator.comparing(e -> e.value, Comparator.reverseOrder()));
-			}
+			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
 			for (int j = 0; j < groundItemEntries.size(); j++) {
 				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
 			}

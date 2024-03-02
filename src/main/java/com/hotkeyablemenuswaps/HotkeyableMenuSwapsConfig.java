@@ -127,13 +127,16 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "groundItemsPriceSortMethod",
-		name = "Sort by price",
-		description = "Initially sorts the ground items by their max(GE Price, High Alch Price) price from most expensive to least expensive",
+		keyName = "groundItemsPriceSortMode",
+		name = "Sort Mode",
+		description = "Specifies on which pricing method to sort ground items BEFORE the custom sort<br>" +
+			"Disabled: No price sorting<br>" +
+			"Grand Exchange: Sort by Grand Exchange price<br>" +
+			"max(GE, High Alch): Sort by the maximum of the Grand Exchange price and the High Alch price",
 		section = groundItemSortSection,
 		position = 3
 	)
-	default GroundItemPriceSortMode groundItemsPriceSortMethod() {
+	default GroundItemPriceSortMode groundItemsPriceSortMode() {
 		return GroundItemPriceSortMode.DISABLED;
 	}
 
