@@ -1194,9 +1194,6 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			reloadGroundItemSort();
 			examineCancelLateRemoval = config.examineCancelLateRemoval();
 		} else if (configChanged.getGroup().equals("grounditems") && (configChanged.getKey().equals("highlightedItems") || configChanged.getKey().equals("hiddenItems"))) {
-			if (configChanged.getKey().equals("groundItemsPriceSortMethod")) {
-				groundItemsPriceSortMode = config.groundItemsPriceSortMethod();
-			}
 			groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), highlightedItemValue != null, hiddenItemValue != null, true);
 		}
 	}
