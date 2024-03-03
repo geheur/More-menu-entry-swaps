@@ -133,7 +133,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		migrate();
 
 		reloadCustomSwaps();
-		reloadGroundItemSort();
+		reloadGroundItemSort(true);
 
 		resetHotkeys();
 
@@ -610,7 +610,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private Integer hiddenItemValue = null;
 	private GroundItemPriceSortMode groundItemsPriceSortMode = GroundItemPriceSortMode.DISABLED;
 
-	private void reloadGroundItemSort() {
+	private void reloadGroundItemSort(boolean didPricingModeChange) {
 		String s = config.groundItemSortCustomValues();
 		List<String> groundItemSortNames = new ArrayList<>();
 		List<MatchType> groundItemSortTypes = new ArrayList<>();
@@ -674,7 +674,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		this.groundItemSortValues = groundItemSortValues.stream().mapToInt(i -> i).toArray();
 		this.groundItemSortNoted = groundItemSortNoted.toArray(new Boolean[groundItemSortNoted.size()]);
 
-		groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), highlightedItemValue != null, hiddenItemValue != null, false);
+		groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), didPricingModeChange,highlightedItemValue != null, hiddenItemValue != null, false);
 	}
 
 	@Subscribe(priority = -1) // This will run after the normal menu entry swapper, so it won't interfere with this plugin.
@@ -759,6 +759,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 						if (noted ^ groundItemSortNoted[j]) continue;
 					}
 					groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemSortValues[j]));
+					// log.debug("Adding ground item " + itemName + " to the list with custom? value " + groundItemSortValues[j] + " " + groundItemSortTypes[j]);
 					continue nextMenuEntry;
 				}
 			}
@@ -766,16 +767,19 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				NamedQuantity key = new NamedQuantity(groundItem.getName(), groundItem.getQuantity());
 				if (highlightedItemValue != null && groundItemsStuff.highlightedItems.getUnchecked(key) == Boolean.TRUE) {
 					groundItemEntries.add(new MenuEntryWithValue(menuEntry, highlightedItemValue));
+					// log.debug("Adding ground item " + itemName + " to the list with highlighted value " + highlightedItemValue);
 					continue nextMenuEntry;
 				}
 				if (hiddenItemValue != null && groundItemsStuff.hiddenItems.getUnchecked(key) == Boolean.TRUE) {
 					groundItemEntries.add(new MenuEntryWithValue(menuEntry, hiddenItemValue));
+					// log.debug("Adding ground item " + itemName + " to the list with hidden value " + hiddenItemValue);
 					continue nextMenuEntry;
 				}
 			}
 			if (!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED) && groundItem != null) {
 				// Lastly, if the ground item is not in any list, add the value with respect to the price sort mode to be sorted
 				groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
+				// log.debug("Adding ground item {}x {} to the list with {} value {} max({},{})", groundItem.getQuantity(), itemName, groundItemsPriceSortMode.toString(), groundItemsPriceSortMode.getItemPrice(groundItem), groundItem.getGePrice(), groundItem.getHaPrice());
 			} else {
 				// Default
 				groundItemEntries.add(new MenuEntryWithValue(menuEntry, 0));
@@ -783,7 +787,9 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+
 			for (int j = 0; j < groundItemEntries.size(); j++) {
+				// log.debug("Sorted ground item: {} with value {}", itemManager.getItemComposition(groundItemEntries.get(j).entry.getIdentifier()).getName(), groundItemEntries.get(j).value);
 				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
 			}
 		}
@@ -1146,11 +1152,22 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged) {
 		if (configChanged.getGroup().equals("hotkeyablemenuswaps")) {
+			if (configChanged.getKey().equals("groundItemsPriceSortMode")) {
+				GroundItemPriceSortMode previousMode = GroundItemPriceSortMode.valueOf(configChanged.getOldValue());
+				GroundItemPriceSortMode currentMode = GroundItemPriceSortMode.valueOf(configChanged.getNewValue());
+				// To avoid re-registering events, only reload the plugin if the price sort mode has from on/off
+				// Disabled -> GE = Register, Disabled -> max = Register, GE -> Disabled = Register, max -> Disabled = Register
+				// GE -> max = Don't register, max -> GE = Don't register
+				if ((previousMode == GroundItemPriceSortMode.DISABLED || currentMode == GroundItemPriceSortMode.DISABLED)) {
+					// log.debug("Price sort mode changed from {} to {}, reloading plugin", previousMode, currentMode);
+					reloadGroundItemSort(true);
+				}
+			}
 			reloadCustomSwaps();
-			reloadGroundItemSort();
+			reloadGroundItemSort(false);
 			examineCancelLateRemoval = config.examineCancelLateRemoval();
 		} else if (configChanged.getGroup().equals("grounditems") && (configChanged.getKey().equals("highlightedItems") || configChanged.getKey().equals("hiddenItems"))) {
-			groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), highlightedItemValue != null, hiddenItemValue != null, true);
+			groundItemsStuff.reloadGroundItemPluginLists(!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED), false,highlightedItemValue != null, hiddenItemValue != null, true);
 		}
 	}
 

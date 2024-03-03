@@ -82,6 +82,7 @@ public class GroundItemsStuff
 	{
 		if (event.getGameState() == GameState.LOADING)
 		{
+			// log.debug("[GIS-onGameStateChanged] Clearing collected ground items");
 			collectedGroundItems.clear();
 		}
 	}
@@ -93,18 +94,18 @@ public class GroundItemsStuff
 		Tile tile = itemSpawned.getTile();
 
 		GroundItem groundItem = buildGroundItem(tile, item);
-		// log.debug("Ground item spawned: {}", groundItem.getName());
+		// log.debug("[GIS-onItemSpawned] Ground item spawned: {}", groundItem.getName());
 		GroundItem existing = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (existing != null)
 		{
 			existing.setQuantity(existing.getQuantity() + groundItem.getQuantity());
 			// The spawn time remains set at the oldest spawn
-			// log.debug("Updated ground item in collectedGroundItems: {}", groundItem.getName());
+			// log.debug("[GIS-onItemSpawned] Updated ground item in collectedGroundItems: {}", groundItem.getName());
 		}
 		else
 		{
 			collectedGroundItems.put(tile.getWorldLocation(), item.getId(), groundItem);
-			// log.debug("Added ground item to collectedGroundItems: {}", groundItem.getName());
+			// log.debug("[GIS-onItemSpawned] Added ground item to collectedGroundItems: {}", groundItem.getName());
 		}
 	}
 
@@ -117,11 +118,13 @@ public class GroundItemsStuff
 		GroundItem groundItem = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (groundItem == null)
 		{
+			// log.debug("[GIS-onItemDespawned] Ground item despawned, but not found in collectedGroundItems: {}", itemManager.getItemComposition(item.getId()).getName());
 			return;
 		}
 
 		if (groundItem.getQuantity() <= item.getQuantity())
 		{
+			// log.debug("[GIS-onItemDespawned] Removed ground item from collectedGroundItems: {}", groundItem.getName());
 			collectedGroundItems.remove(tile.getWorldLocation(), item.getId());
 		}
 		else
@@ -131,6 +134,7 @@ public class GroundItemsStuff
 			// it is not known which item is picked up, so we invalidate the spawn
 			// time
 			groundItem.setSpawnTime(null);
+			// log.debug("[GIS-onItemDespawned] Updated ground item in collectedGroundItems: {} from {}->{]", groundItem.getName(), groundItem.getQuantity() + item.getQuantity(), groundItem.getQuantity());
 		}
 	}
 
@@ -146,6 +150,7 @@ public class GroundItemsStuff
 		GroundItem groundItem = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (groundItem != null)
 		{
+			// log.debug("[GIS-onItemQuantityChanged] Ground item quantity changed: {} from {}->{}", groundItem.getName(), oldQuantity, newQuantity);
 			groundItem.setQuantity(groundItem.getQuantity() + diff);
 		}
 	}
@@ -340,15 +345,17 @@ public class GroundItemsStuff
 		}
 	}
 
-	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean highlightedList, boolean hiddenList, boolean listsChanged)
+	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean didPricingModeChange, boolean highlightedList, boolean hiddenList, boolean listsChanged)
 	{
-		if (shouldSortByPrice || highlightedList && highlightedItems == null || hiddenList && hiddenItems == null)
+		if ((shouldSortByPrice && didPricingModeChange) || (highlightedList && highlightedItems == null) || (hiddenList && hiddenItems == null))
 		{
 			gameEventManager.simulateGameEvents(this);
 			eventBus.register(this);
+			log.debug("[GIS-reloadGroundItemPluginLists] Registered GroundItemsStuff events");
 		} else if (!highlightedList && !hiddenList && !shouldSortByPrice) {
 			eventBus.unregister(this);
 			collectedGroundItems.clear();
+			log.debug("[GIS-reloadGroundItemPluginLists] Unregistered GroundItemsStuff events");
 		}
 
 		if (highlightedList) {
