@@ -195,23 +195,30 @@ public class GroundItemsStuff
 			.name(itemComposition.getName())
 			.haPrice(alchPrice)
 			.height(tile.getItemLayer().getHeight())
-			.tradeable(itemComposition.isTradeable())
+			.tradeable(itemManager.getItemComposition(realItemId).isTradeable())
 			.spawnTime(Instant.now())
 			.stackable(itemComposition.isStackable())
 			.build();
 
-		// Update item price in case it is coins
-		if (realItemId == ItemID.COINS_995)
+		// Update price and tradeable state if the items are coins or platinum tokens
+		switch(realItemId)
 		{
-			groundItem.setHaPrice(1);
-			groundItem.setGePrice(1);
-		}
-		else
-		{
-			groundItem.setGePrice(itemManager.getItemPrice(realItemId));
+			case ItemID.COINS_995:
+				groundItem.setGePrice(1);
+				groundItem.setHaPrice(1);
+				groundItem.setTradeable(true);
+				break;
+			case ItemID.PLATINUM_TOKEN:
+				groundItem.setGePrice(1000);
+				groundItem.setHaPrice(1000);
+				groundItem.setTradeable(true);
+				break;
+			default:
+				groundItem.setGePrice(itemManager.getItemPrice(realItemId));
+				break;
 		}
 
-		log.debug("Built new ground item {}", groundItem);
+		// log.debug("Built new ground item {}", groundItem);
 		return groundItem;
 	}
 
