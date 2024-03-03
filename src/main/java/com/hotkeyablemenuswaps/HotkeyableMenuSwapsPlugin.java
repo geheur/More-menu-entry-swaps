@@ -718,7 +718,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 	private void sortGroundItems()
 	{
-		if (groundItemSortTypes.length == 0 && highlightedItemValue == null && hiddenItemValue == null) return;
+		if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED) && groundItemSortTypes.length == 0 && highlightedItemValue == null && hiddenItemValue == null) return;
 		// log.debug("Sorting ground items based on list");
 		// find a group of contiguous ground items while recording the value of each entry, then sort the block of ground items.
 		MenuEntry[] menuEntries = client.getMenuEntries();
@@ -773,8 +773,13 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 					continue nextMenuEntry;
 				}
 			}
-			// Lastly, if the ground item is not in any list, add the value with respect to the price sort mode to be sorted
-			groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
+			if (!groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED) && groundItem != null) {
+				// Lastly, if the ground item is not in any list, add the value with respect to the price sort mode to be sorted
+				groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
+			} else {
+				// Default
+				groundItemEntries.add(new MenuEntryWithValue(menuEntry, 0));
+			}
 		}
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
