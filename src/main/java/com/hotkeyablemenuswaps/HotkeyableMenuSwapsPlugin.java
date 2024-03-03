@@ -680,7 +680,6 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Subscribe(priority = -1) // This will run after the normal menu entry swapper, so it won't interfere with this plugin.
 	public void onPostMenuSort(PostMenuSort e)
 	{
-		sortGroundItemsByPrice();
 		sortGroundItems();
 		customSwaps();
 
@@ -717,52 +716,6 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		private final int value;
 	}
 
-	private void sortGroundItemsByPrice() {
-		if (groundItemsPriceSortMode.equals(GroundItemPriceSortMode.DISABLED)) return;
-		// log.debug("Sorting ground items according to GE value");
-
-		// find a group of contiguous ground items while recording the value of each entry, then sort the block of ground items.
-		MenuEntry[] menuEntries = client.getMenuEntries();
-		int groundItemBlockStart = -1;
-		List<MenuEntryWithValue> groundItemEntries = new ArrayList<>(menuEntries.length);
-		nextMenuEntry:
-		for (int i = 0; i < menuEntries.length; i++)
-		{
-			MenuEntry menuEntry = menuEntries[i];
-
-			// menu entry is not a ground item menu entry. This may be the end of a take menu entry block, so sort any take menu entries that have been collected so far.
-			if (menuEntry.getType().getId() < WIDGET_TARGET_ON_GROUND_ITEM.getId() || menuEntry.getType().getId() > GROUND_ITEM_FIFTH_OPTION.getId()) {
-				if (groundItemBlockStart != -1) {
-					groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
-					for (int j = 0; j < groundItemEntries.size(); j++) {
-						menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
-					}
-					groundItemEntries.clear();
-					groundItemBlockStart = -1;
-				}
-				continue nextMenuEntry;
-			}
-
-			// menu entry is a ground item menu entry
-			if (groundItemBlockStart == -1) groundItemBlockStart = i;
-
-			GroundItem groundItem = getGroundItemFromScene(menuEntry);
-
-			if (groundItem != null) {
-				groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
-				// log.debug("Added ground item entry {} with the {} value {}", groundItem, groundItemsPriceSortMode, groundItemsPriceSortMode.getItemPrice(groundItem));
-				continue nextMenuEntry;
-			}
-		}
-		if (groundItemBlockStart != -1) {
-			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
-			for (int j = 0; j < groundItemEntries.size(); j++) {
-				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
-			}
-		}
-		client.setMenuEntries(menuEntries);
-	}
-
 	private void sortGroundItems()
 	{
 		if (groundItemSortTypes.length == 0 && highlightedItemValue == null && hiddenItemValue == null) return;
@@ -796,6 +749,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			ItemComposition itemComposition = itemManager.getItemComposition(itemId);
 			String itemName = itemComposition.getName().toLowerCase();
 //			System.out.println("\t" + "a ground item " + itemName + " " + menuEntry.getItemId() + " " + menuEntry.getIdentifier() + " " + menuEntry.getParam1() + " " + menuEntry.getParam0());
+			GroundItem groundItem = getGroundItemFromScene(menuEntry);
+
 			for (int j = 0; j < groundItemSortTypes.length; j++)
 			{
 				if (groundItemSortTypes[j].matches(itemName, groundItemSortNames[j])) {
@@ -808,7 +763,6 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				}
 			}
 			if (highlightedItemValue != null || hiddenItemValue != null) {
-				GroundItem groundItem = getGroundItemFromScene(menuEntry);
 				NamedQuantity key = new NamedQuantity(groundItem.getName(), groundItem.getQuantity());
 				if (highlightedItemValue != null && groundItemsStuff.highlightedItems.getUnchecked(key) == Boolean.TRUE) {
 					groundItemEntries.add(new MenuEntryWithValue(menuEntry, highlightedItemValue));
@@ -819,7 +773,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 					continue nextMenuEntry;
 				}
 			}
-			groundItemEntries.add(new MenuEntryWithValue(menuEntry, 0));
+			// Lastly, if the ground item is not in any list, add the value with respect to the price sort mode to be sorted
+			groundItemEntries.add(new MenuEntryWithValue(menuEntry, groundItemsPriceSortMode.getItemPrice(groundItem)));
 		}
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
