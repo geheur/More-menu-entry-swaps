@@ -186,6 +186,7 @@ public class GroundItemsStuff
 		final ItemComposition itemComposition = itemManager.getItemComposition(itemId);
 		final int realItemId = itemComposition.getNote() != -1 ? itemComposition.getLinkedNoteId() : itemId;
 		final int alchPrice = itemComposition.getHaPrice();
+		final boolean isTradeable = itemComposition.getNote() != -1 ? itemManager.getItemComposition(realItemId).isTradeable() : itemComposition.isTradeable();
 
 		final GroundItem groundItem = GroundItem.builder()
 			.id(itemId)
@@ -195,7 +196,7 @@ public class GroundItemsStuff
 			.name(itemComposition.getName())
 			.haPrice(alchPrice)
 			.height(tile.getItemLayer().getHeight())
-			.tradeable(itemManager.getItemComposition(realItemId).isTradeable())
+			.tradeable(isTradeable)
 			.spawnTime(Instant.now())
 			.stackable(itemComposition.isStackable())
 			.build();
