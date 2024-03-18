@@ -30,14 +30,14 @@ public enum GroundItemPriceSortMode
 			}
 		};
 
-	private final String name;
+	private final String displayName; // For combo box.
 
 	public abstract Integer getItemPrice(GroundItemsStuff.GroundItem groundItem);
 
 	@Override
 	public String toString()
 	{
-		return this.name;
+		return this.displayName;
 	}
 
 }

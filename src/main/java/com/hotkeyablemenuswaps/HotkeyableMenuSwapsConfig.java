@@ -128,11 +128,11 @@ public interface HotkeyableMenuSwapsConfig extends Config
 
 	@ConfigItem(
 		keyName = "groundItemsPriceSortMode",
-		name = "Sort Mode",
-		description = "Specifies on which pricing method to sort ground items BEFORE the custom sort<br>" +
-			"Disabled: No price sorting<br>" +
-			"Grand Exchange: Sort by Grand Exchange price<br>" +
-			"max(GE, High Alch): Sort by the maximum of the Grand Exchange price and the High Alch price",
+		name = "Price Sort",
+		description =
+			"Grand Exchange: Use Grand Exchange price<br>" +
+			"max(GE, High Alch): Use highest of Grand Exchange price and High Alchemy price" +
+			"This value will not be used for items that you've entered into the ground item sort list.",
 		section = groundItemSortSection,
 		position = 3
 	)

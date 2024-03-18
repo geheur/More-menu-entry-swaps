@@ -94,7 +94,6 @@ public class GroundItemsStuff
 		Tile tile = itemSpawned.getTile();
 
 		GroundItem groundItem = buildGroundItem(tile, item);
-		// log.debug("[GIS-onItemSpawned] Ground item spawned: {}", groundItem.getName());
 		GroundItem existing = collectedGroundItems.get(tile.getWorldLocation(), item.getId());
 		if (existing != null)
 		{
@@ -191,7 +190,6 @@ public class GroundItemsStuff
 		final ItemComposition itemComposition = itemManager.getItemComposition(itemId);
 		final int realItemId = itemComposition.getNote() != -1 ? itemComposition.getLinkedNoteId() : itemId;
 		final int alchPrice = itemComposition.getHaPrice();
-		final boolean isTradeable = itemComposition.getNote() != -1 ? itemManager.getItemComposition(realItemId).isTradeable() : itemComposition.isTradeable();
 
 		final GroundItem groundItem = GroundItem.builder()
 			.id(itemId)
@@ -201,23 +199,20 @@ public class GroundItemsStuff
 			.name(itemComposition.getName())
 			.haPrice(alchPrice)
 			.height(tile.getItemLayer().getHeight())
-			.tradeable(isTradeable)
+			.tradeable(itemComposition.isTradeable())
 			.spawnTime(Instant.now())
 			.stackable(itemComposition.isStackable())
 			.build();
 
-		// Update price and tradeable state if the items are coins or platinum tokens
 		switch(realItemId)
 		{
 			case ItemID.COINS_995:
 				groundItem.setGePrice(1);
 				groundItem.setHaPrice(1);
-				groundItem.setTradeable(true);
 				break;
 			case ItemID.PLATINUM_TOKEN:
 				groundItem.setGePrice(1000);
 				groundItem.setHaPrice(1000);
-				groundItem.setTradeable(true);
 				break;
 			default:
 				groundItem.setGePrice(itemManager.getItemPrice(realItemId));
@@ -345,17 +340,22 @@ public class GroundItemsStuff
 		}
 	}
 
-	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean didPricingModeChange, boolean highlightedList, boolean hiddenList, boolean listsChanged)
+	private boolean registered = false;
+
+	public void reloadGroundItemPluginLists(boolean shouldSortByPrice, boolean highlightedList, boolean hiddenList, boolean listsChanged)
 	{
-		if ((shouldSortByPrice && didPricingModeChange) || (highlightedList && highlightedItems == null) || (hiddenList && hiddenItems == null))
-		{
-			gameEventManager.simulateGameEvents(this);
-			eventBus.register(this);
-			log.debug("[GIS-reloadGroundItemPluginLists] Registered GroundItemsStuff events");
-		} else if (!highlightedList && !hiddenList && !shouldSortByPrice) {
+		if (highlightedList || hiddenList || shouldSortByPrice) {
+			if (!registered) {
+				gameEventManager.simulateGameEvents(this);
+				eventBus.register(this);
+				registered = true;
+				log.debug("Registered GroundItemsStuff");
+			}
+		} else {
 			eventBus.unregister(this);
+			registered = false;
 			collectedGroundItems.clear();
-			log.debug("[GIS-reloadGroundItemPluginLists] Unregistered GroundItemsStuff events");
+			log.debug("Unregistered GroundItemsStuff");
 		}
 
 		if (highlightedList) {
