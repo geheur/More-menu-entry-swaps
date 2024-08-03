@@ -592,7 +592,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 					opId = mode.getWithdrawIdentifierChambersStorageUnit();
 				} else if (widgetGroupId == InterfaceID.SEED_VAULT) {
 					opId = mode.getIdentifierSeedVault();
-				} else {
+				} else if (widgetGroupId == InterfaceID.BANK || widgetGroupId == InterfaceID.GROUP_STORAGE) {
 					opId = mode.getWithdrawIdentifier();
 				}
 			} else if (isPriceChecker && menuEntry.getOption().startsWith("Remove")) {

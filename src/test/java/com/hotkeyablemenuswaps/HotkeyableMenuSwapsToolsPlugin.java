@@ -9,6 +9,8 @@ import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
@@ -54,7 +56,9 @@ public class HotkeyableMenuSwapsToolsPlugin extends Plugin
 		for (int i = client.getMenuEntries().length - 1; i >= 0; i--)
 		{
 			MenuEntry menuEntry = client.getMenuEntries()[i];
-			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuEntry.getType() + " " + menuEntry.getIdentifier());
+			Widget widget = menuEntry.getWidget();
+			int interfaceId = widget != null ? WidgetUtil.componentToInterface(widget.getId()) : -1;
+			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuEntry.getType() + " " + menuEntry.getIdentifier() + " " + interfaceId);
 		}
 	}
 
