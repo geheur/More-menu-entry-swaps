@@ -35,6 +35,7 @@ import com.google.inject.Provides;
 import static com.hotkeyablemenuswaps.GroundItemPriceSortMode.DISABLED;
 import com.hotkeyablemenuswaps.GroundItemsStuff.GroundItem;
 import com.hotkeyablemenuswaps.GroundItemsStuff.NamedQuantity;
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,6 +54,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.KeyCode;
@@ -61,6 +63,7 @@ import static net.runelite.api.MenuAction.*;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.FocusChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.PostMenuSort;
 import net.runelite.api.events.VarbitChanged;
@@ -68,6 +71,7 @@ import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetUtil;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.config.RuneLiteConfig;
@@ -82,6 +86,7 @@ import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperConfig;
 import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperPlugin;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
 
 // TODO when you press a key, then press and release a different key, the original key is no longer used for the keybind.
@@ -98,6 +103,7 @@ import net.runelite.client.util.Text;
 public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 {
 	@Inject private Client client;
+	@Inject private ClientThread clientThread;
 	@Inject private HotkeyableMenuSwapsConfig config;
 	@Inject private KeyManager keyManager;
 	@Inject private ConfigManager configManager;
@@ -124,6 +130,11 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	final List<CustomSwap> customShiftSwaps = new ArrayList<>();
 	final List<CustomSwap> customHides = new ArrayList<>();
 
+	final Map<Integer, List<CustomSwap>> regionCustomSwaps = new HashMap<>();
+	final Map<Integer, List<CustomSwap>[]> regionCustomHotkeySwaps = new HashMap<>();
+	final Map<Integer, List<CustomSwap>> regionCustomShiftSwaps = new HashMap<>();
+	final Map<Integer, List<CustomSwap>> regionCustomHides = new HashMap<>();
+
 	private static final int HOTKEY_COUNT = 40;
 	private long hotkeys = 0; // bitfield.
 	private List<Keybind> customSwapKeybinds = new ArrayList<>();
@@ -139,6 +150,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 	@Override
 	protected void startUp() {
+		norecurse = false;
 
 		migrate();
 
@@ -1193,48 +1205,121 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 	}
 
+	boolean norecurse = false;
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged) {
 		if (configChanged.getGroup().equals("hotkeyablemenuswaps")) {
-			keybindCache.clear();
-			reloadCustomSwaps();
-			reloadGroundItemSort();
-			examineCancelLateRemoval = config.examineCancelLateRemoval();
+			if (!norecurse) {
+				keybindCache.clear();
+				reloadCustomSwaps();
+				reloadGroundItemSort();
+				examineCancelLateRemoval = config.examineCancelLateRemoval();
+			}
 		} else if (configChanged.getGroup().equals("grounditems") && (configChanged.getKey().equals("highlightedItems") || configChanged.getKey().equals("hiddenItems"))) {
 			groundItemsStuff.reloadGroundItemPluginLists(groundItemsPriceSortMode != DISABLED, highlightedItemValue != null, hiddenItemValue != null, true);
 		}
 	}
 
-	private void reloadCustomSwaps()
-	{
-		customSwaps.clear();
-		customSwaps.addAll(loadCustomSwaps(config.customSwaps()));
+	private void reloadCustomSwaps() {
+		try {
+			norecurse = true;
+			String changed = loadCustomSwaps(config.customSwaps(), customSwaps, regionCustomSwaps);
+			if (changed != null) configManager.setConfiguration("hotkeyablemenuswaps", "customSwaps", changed);
 
-		customSwapKeybinds.clear();
-		for (int i = 0; i < HOTKEY_COUNT; i++)
-		{
-			customSwapKeybinds.add(configManager.getConfiguration("hotkeyablemenuswaps", "hotkey" + (i + 1), Keybind.class));
-			customHotkeySwaps[i] = new ArrayList<>();
-			customHotkeySwaps[i].addAll(loadCustomSwaps(configManager.getConfiguration("hotkeyablemenuswaps", "hotkey" + (i + 1) + "Swaps", String.class)));
+			customSwapKeybinds.clear();
+			for (int i = 0; i < HOTKEY_COUNT; i++) {
+				String key = "hotkey" + (i + 1);
+				Keybind keybind = configManager.getConfiguration("hotkeyablemenuswaps", key, Keybind.class);
+				String configString = configManager.getConfiguration("hotkeyablemenuswaps", key + "Swaps", String.class);
+				customSwapKeybinds.add(keybind);
+				customHotkeySwaps[i] = new ArrayList<>();
+				Map<Integer, List<CustomSwap>> map = new HashMap<>();
+				changed = loadCustomSwaps(configString, customHotkeySwaps[i], map);
+				if (changed != null) configManager.setConfiguration("hotkeyablemenuswaps", key + "Swaps", changed);
+				for (Map.Entry<Integer, List<CustomSwap>> entry : map.entrySet()) {
+					regionCustomHotkeySwaps.computeIfAbsent(entry.getKey(), k -> new List[HOTKEY_COUNT])[i] = entry.getValue();
+				}
+			}
+
+			changed = loadCustomSwaps(config.customShiftSwaps(), customShiftSwaps, regionCustomShiftSwaps);
+			if (changed != null) configManager.setConfiguration("hotkeyablemenuswaps", "customShiftSwaps", changed);
+
+			changed = loadCustomSwaps(config.customHides(), customHides, regionCustomHides);
+			if (changed != null) configManager.setConfiguration("hotkeyablemenuswaps", "customHides", changed);
+		} finally {
+			norecurse = false;
 		}
-
-		customShiftSwaps.clear();
-		customShiftSwaps.addAll(loadCustomSwaps(config.customShiftSwaps()));
-
-		customHides.clear();
-		customHides.addAll(loadCustomSwaps(config.customHides()));
 	}
 
-	private Collection<? extends CustomSwap> loadCustomSwaps(String customSwaps)
+	private String loadCustomSwaps(String customSwaps, List<CustomSwap> swaps, Map<Integer, List<CustomSwap>> regionSwaps)
 	{
-		if (customSwaps == null) return Collections.emptyList();
-		List<CustomSwap> swaps = new ArrayList<>();
-		for (String customSwap : customSwaps.split("\n"))
+		swaps.clear();
+		regionSwaps.clear();
+		if (customSwaps == null) return null;
+		String[] split1 = customSwaps.split("\n");
+		System.out.println(split1.length);
+		for (int i = 0; i < split1.length; i++)
 		{
+			String customSwap = split1[i];
+			customSwap = customSwap.trim();
+			List<Integer> regions = new ArrayList<>();
+			if (customSwap.startsWith("<")) {
+				int endIndex = customSwap.indexOf(">");
+				if (endIndex != -1) {
+					String conditionString = customSwap.substring(1, endIndex).trim();
+					System.out.println("condition string: " + conditionString);
+					String[] split = conditionString.split("[:,]");
+					boolean inRegion = false;
+					for (String s : split)
+					{
+						s = s.trim();
+						if (s.equals("region")) {
+							inRegion = true;
+						}
+						if (inRegion) {
+							if (s.equals("here")) {
+								if (client.getLocalPlayer() != null) {
+									int regionId = client.getLocalPlayer().getWorldLocation().getRegionID();
+									conditionString = conditionString.replaceAll("here", "" + regionId);
+									split1[i] = "<" + conditionString + ">" + customSwap.substring(endIndex + 1);
+									clientThread.invokeLater(() -> client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "\"here\" replaced with " + ColorUtil.wrapWithColorTag("" + regionId, Color.RED) + ". Reopen the config panel before making any more changes.", ""));
+
+									regions.add(regionId);
+								}
+							} else if (s.equals("rcaltar")) {
+								regions.addAll(List.of(10571, 10315, 10827, 11339, 10059, 11083, 8523, 9035, 9803, 9547, 8779, 9291, 8508, 12875));
+							} else {
+								try {
+									regions.add(Integer.parseInt(s));
+								} catch (NumberFormatException e) {
+									// TODO warning?
+								}
+							}
+						}
+					}
+					customSwap = customSwap.substring(endIndex + 1).trim();
+				}
+			}
 			if (customSwap.trim().equals("")) continue;
-			swaps.add(CustomSwap.fromString(customSwap));
+			CustomSwap swap = CustomSwap.fromString(customSwap);
+			if (regions.isEmpty()) {
+				swaps.add(swap);
+			} else {
+				for (Integer region : regions) {
+					regionSwaps.computeIfAbsent(region, k -> new ArrayList<>()).add(swap);
+				}
+			}
 		}
-		return swaps;
+		String join = String.join("\n", split1);
+		if (!join.equals(customSwaps)) {
+			return join;
+		}
+		return null;
+	}
+
+	private String fixHere(String customSwap)
+	{
+		return null;
 	}
 
 	private boolean shiftModifier()
@@ -1258,20 +1343,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			return;
 		}
 
-		List<CustomSwap> swaps = shiftModifier() ? customShiftSwaps : customSwaps;
-		if (hotkeys > 0)
-		{
-			List<CustomSwap> temp = swaps;
-			swaps = new ArrayList<>();
-			swaps.addAll(temp);
-			for (int i = 0; i < HOTKEY_COUNT; i++)
-			{
-				if ((hotkeys & (1L << i)) > 0)
-				{
-					swaps.addAll(customHotkeySwaps[i]);
-				}
-			}
-		}
+		List<CustomSwap> swaps = getCurrentlyValidCustomSwaps();
 		int entryIndex = getEntryIndexToSwap(menuEntries, swaps);
 		if (entryIndex >= 0)
 		{
@@ -1295,6 +1367,35 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 
 		client.setMenuEntries(menuEntries);
+	}
+
+	private List<CustomSwap> getCurrentlyValidCustomSwaps()
+	{
+		List<CustomSwap> swaps = shiftModifier() ? customShiftSwaps : customSwaps;
+
+		List<CustomSwap> regionSwaps = (shiftModifier() ? regionCustomShiftSwaps : regionCustomSwaps).get(lastRegionId);
+		List<CustomSwap>[] regionHotkeySwaps = (hotkeys > 0) ? regionCustomHotkeySwaps.get(lastRegionId) : null;
+
+		if (hotkeys > 0 || regionSwaps != null) {
+			List<CustomSwap> temp = swaps;
+			swaps = new ArrayList<>();
+			swaps.addAll(temp);
+			if (regionSwaps != null) {
+				swaps.addAll(regionSwaps);
+			}
+			if (hotkeys > 0)
+			{
+				for (int i = 0; i < HOTKEY_COUNT; i++)
+				{
+					if ((hotkeys & (1L << i)) > 0)
+					{
+						swaps.addAll(customHotkeySwaps[i]);
+						if (regionHotkeySwaps != null && regionHotkeySwaps[i] != null) swaps.addAll(regionHotkeySwaps[i]);
+					}
+				}
+			}
+		}
+		return swaps;
 	}
 
 	private int getEntryIndexToSwap(MenuEntry[] menuEntries, List<CustomSwap> swaps)
@@ -1401,5 +1502,14 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		return -1;
+	}
+
+	int lastRegionId = -1;
+	@Subscribe public void onGameTick(GameTick e) {
+		int region = client.getLocalPlayer().getWorldLocation().getRegionID();
+		if (region != lastRegionId) {
+//			regionChanged();
+		}
+		lastRegionId = region;
 	}
 }
