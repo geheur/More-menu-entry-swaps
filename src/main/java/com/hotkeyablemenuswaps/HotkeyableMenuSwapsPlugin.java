@@ -1284,7 +1284,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			if (!doNotSwapOverMinimapOrbs && topEntryIndex > entryIndex) {
 				menuEntries[topEntryIndex] = entryToSwap;
 				menuEntries[entryIndex] = topEntry;
-				menuEntries[topEntryIndex].setParent(null); // Necessary if it's part of a submenu.
+//				menuEntries[topEntryIndex].setParent(null); // Necessary if it's part of a submenu.
 
 				// the client will open the right-click menu on left-click if the entry at the top is a CC_OP_LOW_PRIORITY.
 				if (entryToSwap.getType() == MenuAction.CC_OP_LOW_PRIORITY)
