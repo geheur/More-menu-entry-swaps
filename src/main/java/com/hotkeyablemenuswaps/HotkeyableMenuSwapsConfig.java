@@ -767,4 +767,16 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	{
 		return Keybind.NOT_SET;
 	}
+
+	@ConfigSection(name = "Max cape sort", description = "", position = -100, closedByDefault = true)
+	String maxCapeSortSection = "Max cape sort";
+	@ConfigItem(
+		keyName = "maxCapeSort",
+		name = "",
+		description = "",
+		section = maxCapeSortSection, position = 0)
+	default String maxCapeSort()
+	{
+		return "";
+	}
 }

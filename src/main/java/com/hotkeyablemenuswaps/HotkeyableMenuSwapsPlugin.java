@@ -37,6 +37,7 @@ import com.hotkeyablemenuswaps.GroundItemsStuff.GroundItem;
 import com.hotkeyablemenuswaps.GroundItemsStuff.NamedQuantity;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -56,6 +57,7 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.ItemID;
 import net.runelite.api.KeyCode;
 import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
@@ -147,6 +149,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 		reloadCustomSwaps();
 		reloadGroundItemSort();
+		reloadMaxCapeSort();
 
 		resetHotkeys();
 
@@ -726,6 +729,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	public void onPostMenuSort(PostMenuSort e)
 	{
 		sortGroundItems();
+		maxCapeSort();
 		customSwaps();
 
 		MenuEntry[] menuEntries = client.getMenuEntries();
@@ -1202,6 +1206,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			keybindCache.clear();
 			reloadCustomSwaps();
 			reloadGroundItemSort();
+			reloadMaxCapeSort();
 			examineCancelLateRemoval = config.examineCancelLateRemoval();
 		} else if (configChanged.getGroup().equals("grounditems") && (configChanged.getKey().equals("highlightedItems") || configChanged.getKey().equals("hiddenItems"))) {
 			groundItemsStuff.reloadGroundItemPluginLists(groundItemsPriceSortMode != DISABLED, highlightedItemValue != null, hiddenItemValue != null, true);
@@ -1322,6 +1327,11 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		public MenuIterator(MenuEntry[] menuEntries)
 		{
 			this.menuEntries = menuEntries;
+		}
+
+		public MenuIterator(List<MenuEntry> menuEntries)
+		{
+			this.menuEntries = menuEntries.toArray(new MenuEntry[0]);
 		}
 
 		@Override
@@ -1483,4 +1493,125 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 		return -1;
 	}
+
+	private String[] maxCapeSortNames = new String[0];
+	private MatchType[] maxCapeSortTypes = new MatchType[0];
+	private void maxCapeSort() {
+		if (maxCapeSortNames.length == 0) return;
+		int itemId = -1;
+		boolean inventory = false;
+		for (MenuEntry menuEntry : client.getMenu().getMenuEntries()) {
+			if (menuEntry.getWidget() != null && menuEntry.getItemId() != -1) {
+				int interfaceId = WidgetUtil.componentToInterface(menuEntry.getWidget().getId());
+				if (interfaceId == InterfaceID.INVENTORY) {
+					itemId = menuEntry.getItemId();
+					inventory = true;
+				} else if (interfaceId == InterfaceID.EQUIPMENT) {
+					itemId = menuEntry.getItemId();
+					inventory = false;
+				}
+			}
+		}
+		if (itemId != ItemID.MAX_CAPE) {
+//			return;
+		}
+
+		List<MenuEntry> entries = new ArrayList<>();
+		List<Boolean> isSubmenu = new ArrayList<>();
+//		List<MenuEntry> extras = new ArrayList<>();
+		List<MenuEntry> menuEntries = new ArrayList<>(Arrays.asList(client.getMenu().getMenuEntries()));
+		for (int i = 0; i < maxCapeSortNames.length; i++)
+		{
+			String text = maxCapeSortNames[i];
+			MatchType type = maxCapeSortTypes[i];
+			if (client.getGameCycle() % 50 == 0) System.out.println("looking at " + text);
+			MenuIterator iter = new MenuIterator(menuEntries);
+			while (iter.hasNext()) {
+				MenuEntry entry = iter.next();
+				/*
+				if (client.getGameCycle() % 50 == 0) System.out.println();
+				 */
+//				if (client.getGameCycle() % 50 == 0) System.out.println("\t" + entry.getOption());
+				if (type.matches(entry.getOption().toLowerCase(), text)) {
+					if (iter.submenu != null && iter.submenuIndex != -1) { // is submenu
+						if (client.getGameCycle() % 50 == 0) System.out.println("\tis submenu " + entry.getOption());
+						isSubmenu.add(true);
+						entries.add(entry);
+						break;
+					} else {
+						if (client.getGameCycle() % 50 == 0) System.out.println("\tis not submenu " + entry.getOption());
+						isSubmenu.add(false);
+						menuEntries.remove(iter.index);
+						entries.add(entry);
+						break;
+					}
+				}
+			}
+		}
+		List<MenuEntry> finalList = new ArrayList<>();
+		List<Integer> submenuInsertionPoints = new ArrayList<>();
+		for (int i = 0; i < entries.size(); i++)
+		{
+			Boolean aBoolean = isSubmenu.get(i);
+			if (aBoolean) {
+				submenuInsertionPoints.add(i);
+			} else {
+				MenuEntry entry = entries.get(i);
+				finalList.add(entry);
+			}
+		}
+		if (client.getGameCycle() % 50 == 0) System.out.println("final list");
+		for (MenuEntry menuEntry : finalList)
+		{
+			if (client.getGameCycle() % 50 == 0) System.out.println(menuEntry.getOption());
+		}
+		if (client.getGameCycle() % 50 == 0) System.out.println("final list");
+		for (MenuEntry menuEntry : menuEntries)
+		{
+			if (client.getGameCycle() % 50 == 0) System.out.println(menuEntry.getOption());
+		}
+		Collections.reverse(menuEntries);
+		finalList.addAll(menuEntries);
+		Collections.reverse(finalList);
+		if (client.getGameCycle() % 50 == 0) System.out.println("final list");
+		for (MenuEntry menuEntry : finalList)
+		{
+			if (client.getGameCycle() % 50 == 0) System.out.println(menuEntry.getOption());
+		}
+		client.setMenuEntries(finalList.toArray(new MenuEntry[0]));
+		int count = 0;
+		for (Integer i : submenuInsertionPoints)
+		{
+			MenuEntry entry = entries.get(i);
+			client.createMenuEntry(finalList.size() + count - i).setOption(entry.getOption()).setTarget(entry.getTarget()).onClick(entry.onClick());
+			count++;
+		}
+	}
+
+	private void reloadMaxCapeSort() {
+		String s = config.maxCapeSort();
+		List<String> maxCapeSortNames = new ArrayList<>();
+		List<MatchType> maxCapeSortTypes = new ArrayList<>();
+
+		for (String line : s.split("\n"))
+		{
+			if (line.trim().equals("")) continue;
+
+//			String[] split = line.split(",");
+//			if (split.length > 1) {
+//				// TODO chat mesage.
+//				continue;
+//			}
+
+			String itemWildcard = line.trim().toLowerCase();
+			MatchType type = MatchType.getType(itemWildcard);
+			String matchString = MatchType.prepareMatch(itemWildcard, type);
+			maxCapeSortNames.add(matchString);
+			maxCapeSortTypes.add(type);
+			System.out.println(matchString + " " + type);
+		}
+		this.maxCapeSortNames = maxCapeSortNames.toArray(new String[maxCapeSortNames.size()]);
+		this.maxCapeSortTypes = maxCapeSortTypes.toArray(new MatchType[maxCapeSortTypes.size()]);
+	}
+
 }
