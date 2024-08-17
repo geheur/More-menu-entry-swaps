@@ -1379,9 +1379,16 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 //		if (client.getGameCycle() % 50 == 0) System.out.println("menu entries:");
 		MenuIterator menuIterator = new MenuIterator(menuEntries);
-		while (menuIterator.hasNext())
-		{
-			MenuEntry entry = menuIterator.next();
+		List<MenuEntry> entries = new ArrayList<>();
+		List<Integer> indexes = new ArrayList<>();
+		List<Integer> submenuIndexes = new ArrayList<>();
+		while (menuIterator.hasNext()) {
+			entries.add(menuIterator.next());
+			indexes.add(menuIterator.index);
+			submenuIndexes.add(menuIterator.submenuIndex);
+		}
+		for (int i = entries.size() - 1; i >= 0; i--) {
+			MenuEntry entry = entries.get(i);
 //			if (client.getGameCycle() % 50 == 0) System.out.println("\t" + menuIterator.index + " " + menuIterator.submenuIndex + " " + entry.getOption() + " " + entry.getTarget());
 
 			if (doNotSwapDeprioritizedTake) {
@@ -1395,10 +1402,10 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			String option = Text.standardize(entry.getOption());
 			String target = Text.standardize(entry.getTarget());
 			int swapIndex = matches(option, target, topEntryOption, topEntryTarget, swaps);
-			if (swapIndex >= latestMatchingSwapIndex)
+			if (swapIndex > latestMatchingSwapIndex)
 			{
-				bestMenuEntryIndex = menuIterator.index;
-				bestMenuEntrySubmenuIndex = menuIterator.submenuIndex;
+				bestMenuEntryIndex = indexes.get(i);
+				bestMenuEntrySubmenuIndex = submenuIndexes.get(i);
 
 				latestMatchingSwapIndex = swapIndex;
 //				if (client.getGameCycle() % 50 == 0) System.out.println("\t\tmatch found " + menuIterator.index + " " + menuIterator.submenuIndex);
