@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
@@ -64,6 +65,7 @@ import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
 import static net.runelite.api.MenuAction.*;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.annotations.Component;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.FocusChanged;
 import net.runelite.api.events.MenuOpened;
@@ -73,6 +75,7 @@ import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetUtil;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.config.RuneLiteConfig;
@@ -89,6 +92,7 @@ import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperConfig;
 import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperPlugin;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 
 // TODO when you press a key, then press and release a different key, the original key is no longer used for the keybind.
 // Also, modifier keys cannot be activated if they are pressed when the client does not have focus, which is annoying.
@@ -110,6 +114,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Inject private MenuEntrySwapperConfig menuEntrySwapperConfig;
 	@Inject private ItemManager itemManager;
 	@Inject private GroundItemsStuff groundItemsStuff;
+	@Inject private ClientThread clientThread;
 
 	// If a hotkey corresponding to a swap is currently held, these variables will be non-null. currentBankModeSwap is an exception because it uses menu entry swapper's bank swap enum, which already has an "off" value.
 	// These variables do not factor in left-click swaps.
@@ -1505,10 +1510,75 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private String[] maxCapeSortNames = new String[0];
 	private MatchType[] maxCapeSortTypes = new MatchType[0];
 	private void maxCapeSort() {
-		boolean print = client.getGameCycle() % 50 == 0;
+		boolean print = client.getGameCycle() % 50 == 0; // rate limited printing
 		if (print) System.out.println("===maxCapeSort===");
 		if (maxCapeSortNames.length == 0) return;
 
+		// detect max cape
+		boolean isMaxCape = isMaxCape(); // TODO just returns true atm.
+		if (!isMaxCape) return;
+
+		List<Pair<Integer, Object>> reconstructedMenuEntries = new ArrayList<>();
+		int index = 0;
+
+		List<MenuEntry> menuEntries = new ArrayList<>(Arrays.asList(client.getMenu().getMenuEntries())); // We will null out non-submenu menu entries that were added to `entries` so that this list will represent the un-moved menus.
+
+		List<MenuEntry> finalList = new ArrayList<>(); // The list of entries that will be put on the cape, excluding those that are submenus.
+
+		outer_loop:
+		for (int i = 0; i < maxCapeSortNames.length; i++) {
+			String text = maxCapeSortNames[i];
+			MatchType type = maxCapeSortTypes[i];
+			MenuIterator iter = new MenuIterator(menuEntries);
+			while (iter.hasNext()) {
+				MenuEntry entry = iter.next();
+				if (type.matches(entry.getOption().toLowerCase(), text)) {
+					if (iter.submenu != null && iter.submenuIndex != -1) { // is submenu
+						if (print) System.out.println("\tis submenu " + entry.getOption());
+						reconstructedMenuEntries.add(Pair.of(index, entry));
+						index++;
+						continue outer_loop;
+					} else {
+						if (print) System.out.println("\tis not submenu " + entry.getOption());
+						menuEntries.remove(iter.index);
+						finalList.add(entry);
+						index++;
+						continue outer_loop;
+					}
+				}
+			}
+			// TODO idk how this works exactly.
+			List<MaxCapeTeleports> teleports = MaxCapeTeleports.getTeleports(Pattern.compile(""));
+			if (!teleports.isEmpty()) {
+				reconstructedMenuEntries.add(Pair.of(index, teleports.get(0)));
+				index++;
+				continue outer_loop;
+			}
+		}
+		// add remainder of menu entries to end of list.
+		Collections.reverse(menuEntries);
+		finalList.addAll(menuEntries);
+		Collections.reverse(finalList);
+		client.setMenuEntries(finalList.toArray(new MenuEntry[0]));
+
+		// add menu entries that cannot be moved.
+		int count = 0;
+		for (Pair<Integer, Object> e : reconstructedMenuEntries) {
+			int i = finalList.size() + count - e.getLeft();
+			Object o = e.getRight();
+			if (o instanceof MenuEntry) {
+				MenuEntry entry = (MenuEntry) o;
+				client.createMenuEntry(i).setOption(entry.getOption()).setTarget(entry.getTarget()).onClick(entry.onClick());
+			} else {
+				// TODO
+				createMaxCapeMenu(client.getMenu(), i, null, (MaxCapeTeleports) o);
+			}
+			count++;
+		}
+	}
+
+	private boolean isMaxCape()
+	{
 		int itemId = -1;
 		boolean inventory = false;
 		for (MenuEntry menuEntry : client.getMenu().getMenuEntries()) {
@@ -1523,75 +1593,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				}
 			}
 		}
-		if (itemId != ItemID.MAX_CAPE) {
-//			return;
-		}
-
-		List<MenuEntry> entries = new ArrayList<>();
-		List<Boolean> isSubmenu = new ArrayList<>();
-		List<MenuEntry> menuEntries = Arrays.asList(client.getMenu().getMenuEntries());
-		List<MenuEntry> remainder = new ArrayList<>(menuEntries);
-		for (int i = 0; i < maxCapeSortNames.length; i++)
-		{
-			String text = maxCapeSortNames[i];
-			MatchType type = maxCapeSortTypes[i];
-			if (print) System.out.println("looking at " + text);
-			MenuIterator iter = new MenuIterator(menuEntries);
-			while (iter.hasNext()) {
-				MenuEntry entry = iter.next();
-				if (type.matches(entry.getOption().toLowerCase(), text)) {
-					if (iter.submenu != null && iter.submenuIndex != -1) { // is submenu
-						if (print) System.out.println("\tis submenu " + entry.getOption());
-						isSubmenu.add(true);
-						entries.add(entry);
-						break;
-					} else {
-						if (print) System.out.println("\tis not submenu " + entry.getOption());
-						isSubmenu.add(false);
-						remainder.set(iter.index, null);
-						entries.add(entry);
-						break;
-					}
-				}
-			}
-		}
-		List<MenuEntry> finalList = new ArrayList<>();
-		List<Integer> submenuInsertionPoints = new ArrayList<>();
-		for (int i = 0; i < entries.size(); i++)
-		{
-			Boolean aBoolean = isSubmenu.get(i);
-			if (aBoolean) {
-				submenuInsertionPoints.add(i);
-			} else {
-				MenuEntry entry = entries.get(i);
-				finalList.add(entry);
-			}
-		}
-		remainder = remainder.stream().filter(i -> i != null).collect(Collectors.toList());
-//		if (print) {
-//			System.out.println("final list");
-//			for (MenuEntry menuEntry : finalList)
-//				System.out.println(menuEntry.getOption());
-//			System.out.println("remainder");
-//			for (MenuEntry menuEntry : remainder)
-//				System.out.println(menuEntry.getOption());
-//		}
-		Collections.reverse(remainder);
-		finalList.addAll(remainder);
-		Collections.reverse(finalList);
-//		if (print) {
-//			System.out.println("final list");
-//			for (MenuEntry menuEntry : finalList)
-//				System.out.println(menuEntry.getOption());
-//		}
-		client.setMenuEntries(finalList.toArray(new MenuEntry[0]));
-		int count = 0;
-		for (Integer i : submenuInsertionPoints)
-		{
-			MenuEntry entry = entries.get(i);
-			client.createMenuEntry(finalList.size() + count - i).setOption(entry.getOption()).setTarget(entry.getTarget()).onClick(entry.onClick());
-			count++;
-		}
+		return true;
 	}
 
 	private void reloadMaxCapeSort() {
@@ -1619,5 +1621,178 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		this.maxCapeSortNames = maxCapeSortNames.toArray(new String[maxCapeSortNames.size()]);
 		this.maxCapeSortTypes = maxCapeSortTypes.toArray(new MatchType[maxCapeSortTypes.size()]);
 	}
+	private void createMaxCapeMenu(Menu menu, int index, /*@NonNull */MenuEntry menuEntry, MaxCapeTeleports teleport) {
 
+		menu.createMenuEntry(index)
+			.setOption(teleport.toString())
+			.setTarget("target")
+			.setParam0(0)
+			.setParam1(0)
+			.setType(RUNELITE)
+			.onClick(e -> clientThread.invokeLater(() -> {
+				client.menuAction(0, 0, CC_OP,
+					0, 0, "bla", "target");
+				for (int op : teleport.getOps()) {
+					pauseresume(teleport.getId(), op);
+				}
+			}));
+	}
+
+//	private void maxCapeMenu() {
+//		Menu menu = client.getMenu();
+//		MenuEntry[] menuEntries = menu.getMenuEntries();
+//		// Create easily accessible map for options
+//		Map<String, MenuEntry> menuMap = new HashMap<>();
+//
+//		boolean isMaxCape = true;
+//		int index = 0;
+//		for (MenuEntry entry : menuEntries) {
+//			if (entry == null) {
+//				continue;
+//			}
+//
+//			menuMap.put(entry.getOption(), entry);
+//			isMaxCape = (isMaxCape && entry.getItemId() == ItemID.MAX_CAPE) || !entry.getOption().equals("Cancel");
+//		}
+//
+//		if (!isMaxCape) {
+//			// Do nothing if it wasn't a max cape. TODO: add diary cape.
+//			return;
+//		}
+//
+//		String conf =
+//			config.maxCapeMenus().toLowerCase().strip();
+//		// star (*) intentionally missing from the list: .+?()|[]{}^$\\\\
+//		String regexSpecialCharacters = "\\.\\+\\?\\(\\)\\|\\[\\]\\{\\}\\^\\$\\\\";
+//		Pattern regexEscapes = Pattern.compile("([" + regexSpecialCharacters +"])");
+//		Matcher regexEscapeMatcher = regexEscapes.matcher(conf);
+//		conf = regexEscapeMatcher.replaceAll("\\\\$1");
+//		System.out.println(conf);
+//
+//		List<MaxCapeTeleports> entries = Arrays.stream(conf.split("\n"))
+//			// We allow * for wildcards, replace it with regex variant
+//			.map(pat -> pat.replace("*", ".*"))
+//			.map(Pattern::compile)
+//			.map(MaxCapeTeleports::getTeleports)
+//			.flatMap(Collection::stream) // Collapse list into the current list
+//			.collect(Collectors.toList());
+//
+//		Set<String> normalMenus = ImmutableSet.of("Use", "Cancel", "Examine", "Wear", "Drop");
+//
+//		index = menuEntries.length - 1;
+//		for (MaxCapeTeleports entry : entries) {
+//			MenuEntry menuEntry = menuMap.get(entry.getOption());
+//			if (menuEntry == null) {
+//				continue;
+//			}
+//
+//			if (normalMenus.contains(menuEntry.getOption())) {
+//				int i = 0;
+//				int swap = -1;
+//				for (MenuEntry e : menu.getMenuEntries()) {
+//					if (e.getOption().equals(menuEntry.getOption())) {
+//						swap = i;
+//						break;
+//					}
+//					i++;
+//				}
+//				assert swap != -1;
+//				// Sort it to the given order
+//				MenuEntry e = menuEntries[swap];
+//				menuEntries[swap] = menuEntries[index];
+//				menuEntries[index] = e;
+//				menu.setMenuEntries(menuEntries);
+//			} else {
+//				createMaxCapeMenu(menu, ++index, menuEntry, entry);
+//				menuEntries = menu.getMenuEntries();
+//			}
+//			index--;
+//		}
+//		// We can't remove the menu entirely as it will then end up overwriting the menu entries
+//	}
+//
+	private void pauseresume(@Component int comp, int op)
+	{
+		client.menuAction(op, comp, MenuAction.WIDGET_CONTINUE, -1, -1, "", "");
+	}
+
+	public enum MaxCapeTeleports {
+		// Normal usage
+		WEAR("Wear", "Wear", 0),
+		USE("Use", "Use", 0),
+		EXAMINE("Examine", "Examine", 0),
+		DROP("Drop", "Drop", 0),
+		CANCEL("Cancel", "Cancel", 0),
+		TELEPORTS("Teleports", "Teleports", 0),
+
+		// Teleports
+		WARRIORS_GUILD("Warrior's Guild", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 0),
+		FISHING_GUILD("Fishing Guild", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 1),
+		CRAFTING_GUILD("Crafting Guild", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 2),
+		FARMING_GUILD("Farming Guild", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 3),
+		OTTOS_GROTTO("Otto's Grotto", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 4),
+		RED_CHINS("Red Chinchompas", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 5, 1),
+		BLACK_CHINS("Black Chinchompas", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 5, 2),
+		HUNTER_GUILD("Hunter Guild", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 5, 3),
+		HOME("Home", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 0),
+		RIMMINGTON("Rimmington", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 1),
+		TAVERLEY("Taverley", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 2),
+		POLLNIVNEACH("Pollnivneach", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 3),
+		HOSIDIUS("Hosidius", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 4),
+		RELLEKA("Rellekka", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 5),
+		BRIMHAVEN("Brimhaven", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 6),
+		YANILLE("Yanille", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 7),
+		PRIFDDINAS("Prifddinas", "Teleports", ComponentID.ADVENTURE_LOG_OPTIONS, 6, 8),
+
+		// Features
+		PESTLE_AND_MORTAR("Pestle and Mortar", "Features", ComponentID.DIALOG_OPTION_OPTIONS, 1, 1),
+		MITH_GRAPPLE("Mithril Grapple & Cross", "Features", ComponentID.DIALOG_OPTION_OPTIONS, 1, 2),
+		SPELLBOOK("Spellbook", "Features", ComponentID.DIALOG_OPTION_OPTIONS, 4),
+		STAMINA_BOOST("Stamina Boost", "Features", ComponentID.DIALOG_OPTION_OPTIONS, 5),
+		;
+
+		static final Map<String, MaxCapeTeleports> mapper;
+		final String name;
+
+		@Getter
+		final String option;
+
+		@Getter
+		final int id;
+
+		@Getter
+		final int []ops;
+
+		static {
+			Map<String, MaxCapeTeleports> map = new HashMap<>();
+			for (MaxCapeTeleports tele : values()) {
+				map.put(tele.toString().toLowerCase(), tele);
+			}
+			mapper = Collections.unmodifiableMap(map);
+		}
+
+		MaxCapeTeleports(String name, String option, int id, int ...ops)
+		{
+			this.name = name;
+			this.option = option;
+			this.id = id;
+			this.ops = new int[ops.length];
+			System.arraycopy(ops, 0, this.ops, 0, ops.length);
+		}
+
+		public static List<MaxCapeTeleports> getTeleports(Pattern pattern) {
+			return pattern != null ? List.of(SPELLBOOK) : List.of();
+//			List<MaxCapeTeleports> features = mapper.entrySet().stream()
+//				.filter(entry -> pattern.matcher(entry.getKey()).matches())
+//				.map(Map.Entry::getValue)
+//				.collect(Collectors.toList());
+//			return features;
+		}
+
+		@Override
+		public String toString()
+		{
+			return name;
+		}
+	}
 }
