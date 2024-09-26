@@ -837,7 +837,9 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		String regexSpecialCharacters = "\\.\\+\\?\\(\\)\\|\\[\\]\\{\\}\\^\\$\\\\";
 		Pattern regexEscapes = Pattern.compile("([" + regexSpecialCharacters +"])");
 		Matcher regexEscapeMatcher = regexEscapes.matcher(conf.toLowerCase().strip());
-		return Arrays.asList(regexEscapeMatcher.replaceAll("\\\\$1").replace("*", ".*").split("\n"));
+		List<String> strings = Arrays.asList(regexEscapeMatcher.replaceAll("\\\\$1").replace("*", ".*").split("\n"));
+		System.out.println(strings);
+		return strings;
 	}
 
 	private List<MenuEntry> searchSubmenus(List<MenuEntry> parents, List<String> names) {

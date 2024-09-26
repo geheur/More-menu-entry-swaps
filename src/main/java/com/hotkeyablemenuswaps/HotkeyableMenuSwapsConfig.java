@@ -157,12 +157,12 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigSection(name = "Diary Cape Sort", description = "", position = -7, closedByDefault = true)
 	String diaryCapeMenus = "Diary Cape Sort";
 	@ConfigItem(
-			keyName = "diaryCapeSort",
-			name = "Diary Cape Sort",
-			description = "*** Requires sub menus enabled in Menu Entry Swapper plugin ***<br>" +
-				"Sorts the menu entries on the cape. Only include the option (e.g. \"Wear\" or \"Jarr\"), each on its own line. Supports wildcards (*).",
-			section = diaryCapeMenus,
-			position = 3
+		keyName = "diaryCapeSort",
+		name = "Diary Cape Sort",
+		description = "*** Requires sub menus enabled in Menu Entry Swapper plugin ***<br>" +
+			"Sorts the menu entries on the cape. Only include the option (e.g. \"Wear\" or \"Jarr\"), each on its own line. Supports wildcards (*).",
+		section = diaryCapeMenus,
+		position = 1
 	)
 	default String diaryCapeSort() {
 		return "";
@@ -173,7 +173,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		name = "Hide \"Teleports\" submenu",
 		description = "",
 		section = diaryCapeMenus,
-		position = 1
+		position = 2
 	)
 	default boolean hideDiaryTeleportsSubmenu() {
 		return false;
@@ -187,7 +187,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		description = "*** Requires sub menus enabled in Menu Entry Swapper plugin ***<br>" +
 			"Sorts the menu entries on the cape. Only include the option (e.g. \"Wear\" or \"Crafting guild\"), each on its own line. Supports wildcards (*).",
 		section = maxCapeMenus,
-		position = 3
+		position = 1
 	)
 	default String maxCapeSort() {
 		return "";
@@ -198,7 +198,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		name = "Hide \"Teleports\" submenu",
 		description = "",
 		section = maxCapeMenus,
-		position = 1
+		position = 2
 	)
 	default boolean hideMaxCapeTeleportsSubmenu() {
 		return false;
@@ -209,7 +209,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		name = "Don't add \"Features\" submenu",
 		description = "",
 		section = maxCapeMenus,
-		position = 2
+		position = 3
 	)
 	default boolean hideMaxCapeFeaturesSubmenu() {
 		return true;
