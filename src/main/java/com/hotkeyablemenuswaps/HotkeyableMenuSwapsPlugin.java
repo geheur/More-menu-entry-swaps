@@ -55,11 +55,19 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.InventoryID;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.KeyCode;
 import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
-import static net.runelite.api.MenuAction.*;
+import static net.runelite.api.MenuAction.GROUND_ITEM_FIFTH_OPTION;
+import static net.runelite.api.MenuAction.PLAYER_EIGHTH_OPTION;
+import static net.runelite.api.MenuAction.PLAYER_FIRST_OPTION;
+import static net.runelite.api.MenuAction.WIDGET_TARGET;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_GROUND_ITEM;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_NPC;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_PLAYER;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
@@ -867,8 +875,37 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			groundItemEntries.add(new MenuEntryWithValue(menuEntry, getValue(menuEntry)));
 		}
+
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+			// If a Player's inventory is full, then we should re-sort the items if we can take any of them
+			if (config.groundItemsInventoryPriority()) {
+				ItemContainer playerInventory = client.getItemContainer(InventoryID.INVENTORY);
+				if (playerInventory != null && playerInventory.count() == 28) {
+					groundItemEntries.sort((a, b) -> {
+						// Sort conditions should be the following (Knowing the list has already been sorted by price earlier):
+						// 1. Filter the sort to only include items that are in the player's inventory and it's stackable
+						// 2. If the both of the item are stackable, then sort by the value of the items
+
+						int aItemID = a.entry.getIdentifier();
+						int bItemID = b.entry.getIdentifier();
+						ItemComposition aItemComp = itemManager.getItemComposition(aItemID);
+						ItemComposition bItemComp = itemManager.getItemComposition(bItemID);
+						boolean didFindInventoryStackableA = playerInventory.contains(aItemID) && aItemComp.isStackable();
+						boolean didFindInventoryStackableB = playerInventory.contains(bItemID) && bItemComp.isStackable();
+
+						//	log.debug("Ground Item A: {} ({})x{} {} && {}", aItemComp.getName(), aItemID, aItemComp.getNote(), playerInventory.contains(aItemID), aItemComp.isStackable());
+						//	log.debug("Ground Item B: {} ({})x{} {} && {}", bItemComp.getName(), bItemID, bItemComp.getNote(), playerInventory.contains(bItemID), bItemComp.isStackable());
+
+						if (didFindInventoryStackableA != didFindInventoryStackableB) {
+							return Boolean.compare(didFindInventoryStackableA, didFindInventoryStackableB);
+						}
+
+						return Comparator.<MenuEntryWithValue>comparingInt(e -> e.value).compare(a, b);
+					});
+				}
+			}
+
 			for (int j = 0; j < groundItemEntries.size(); j++) {
 				// log.debug("Sorted ground item: {} with value {}", itemManager.getItemComposition(groundItemEntries.get(j).entry.getIdentifier()).getName(), groundItemEntries.get(j).value);
 				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
