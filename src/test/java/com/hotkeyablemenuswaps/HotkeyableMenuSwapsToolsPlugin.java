@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import net.runelite.api.Client;
+import net.runelite.api.Menu;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.CommandExecuted;
@@ -57,6 +58,7 @@ public class HotkeyableMenuSwapsToolsPlugin extends Plugin
 		while (menuIterator.hasNext())
 		{
 			MenuEntry menuEntry = menuIterator.next();
+			Menu subMenu = menuEntry.getSubMenu();
 			Widget widget = menuEntry.getWidget();
 			int interfaceId = widget != null ? WidgetUtil.componentToInterface(widget.getId()) : -1;
 //			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuEntry.getType() + " " + menuEntry.getIdentifier() + " " + interfaceId);
