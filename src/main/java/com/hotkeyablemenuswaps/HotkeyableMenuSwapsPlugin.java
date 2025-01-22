@@ -1317,7 +1317,17 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 //					entryToSwap = entries[submenuIndex];
 //					entries[submenuIndex] = topEntry;
 //					submenu.setMenuEntries(entries);
-					client.getMenu().createMenuEntry(-1).setOption(entryToSwap.getOption()).setTarget(entryToSwap.getTarget()).onClick(entryToSwap.onClick());
+					client.getMenu()
+						.createMenuEntry(-1)
+						.setIdentifier(entryToSwap.getIdentifier())
+						.setOption(entryToSwap.getOption())
+						.setTarget(entryToSwap.getTarget())
+						.setParam0(entryToSwap.getParam0())
+						.setParam1(entryToSwap.getParam1())
+						.setItemId(entryToSwap.getItemId())
+						.setType(entryToSwap.getType())
+						.setWorldViewId(entryToSwap.getWorldViewId())
+						.onClick(entryToSwap.onClick());
 				} else {
 					menuEntries[index] = topEntry;
 					menuEntries[topEntryIndex] = entryToSwap;
