@@ -51,14 +51,18 @@ public class HotkeyableMenuSwapsToolsPlugin extends Plugin
 	@Inject
 	private Client client;
 
-	@Subscribe public void onMenuOpened(MenuOpened e) {
+	@Subscribe(priority = -1000f) public void onMenuOpened(MenuOpened e) {
 		System.out.println("===menu opened===");
-		for (int i = client.getMenuEntries().length - 1; i >= 0; i--)
+		HotkeyableMenuSwapsPlugin.ForwardsMenuIterator menuIterator = new HotkeyableMenuSwapsPlugin.ForwardsMenuIterator(client.getMenuEntries());
+		while (menuIterator.hasNext())
 		{
-			MenuEntry menuEntry = client.getMenuEntries()[i];
+			MenuEntry menuEntry = menuIterator.next();
 			Widget widget = menuEntry.getWidget();
 			int interfaceId = widget != null ? WidgetUtil.componentToInterface(widget.getId()) : -1;
-			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuEntry.getType() + " " + menuEntry.getIdentifier() + " " + interfaceId);
+//			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuEntry.getType() + " " + menuEntry.getIdentifier() + " " + interfaceId);
+			if (menuIterator.inSubmenu()) System.out.print("\t");
+			System.out.println(menuEntry.getOption() + " " + menuEntry.getTarget() + " " + menuIterator.submenuIndex);
+			if (menuIterator.inSubmenu()) System.out.println("\t" + " parent: " + menuIterator.index + " " + menuIterator.getMenuEntries()[menuIterator.index].getOption() + "," + menuIterator.getMenuEntries()[menuIterator.index].getTarget());
 		}
 	}
 

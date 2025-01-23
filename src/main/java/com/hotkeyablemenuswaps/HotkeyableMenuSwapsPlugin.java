@@ -1195,6 +1195,27 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				topOptionType.matches(topOption, this.topOption) &&
 				topTargetType.matches(topTarget, this.topTarget);
 		}
+
+		public boolean matches(String option, String target, String topOption, String topTarget, MenuIterator iter)
+		{
+			boolean targetMatches = targetType.matches(target, this.target);
+			// Allows the more intuitive syntax `Crafting guild,Max cape` instead of the unintuitive `Crafting guild,,*,Max cape`.
+			// Also keeps compatibility with config users created before the jan 22 2025 submenu change.
+			if (!targetMatches && iter.inSubmenu() && target.isEmpty()) {
+				// I want to check everything else first to avoid wasting time on Text.standardize.
+				boolean everythingElseMatches = optionType.matches(option, this.option) &&
+					topOptionType.matches(topOption, this.topOption) &&
+					topTargetType.matches(topTarget, this.topTarget);
+				if (!everythingElseMatches) return false;
+				target = Text.standardize(iter.getMenuEntries()[iter.getIndex()].getTarget());
+				return targetType.matches(target, this.target);
+			} else {
+				return targetMatches &&
+					optionType.matches(option, this.option) &&
+					topOptionType.matches(topOption, this.topOption) &&
+					topTargetType.matches(topTarget, this.topTarget);
+			}
+		}
 	}
 
 	@Subscribe
@@ -1312,15 +1333,24 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 	}
 
-	private final static class MenuIterator implements Iterator<MenuEntry> {
+	private interface MenuIterator extends Iterator<MenuEntry> {
+		MenuEntry[] getMenuEntries();
+		int getIndex();
+		int getSubmenuIndex();
+		default boolean inSubmenu() {
+			return getSubmenuIndex() != -1;
+		}
+	}
+
+	final static class ForwardsMenuIterator implements MenuIterator {
 		Menu submenu = null;
-		int index = -1;
-		int submenuIndex = -1;
+		@Getter int index = -1;
+		@Getter int submenuIndex = -1;
 		int nextIndex = 0;
 		int nextSubmenuIndex = -1;
-		MenuEntry[] menuEntries;
+		@Getter MenuEntry[] menuEntries;
 
-		public MenuIterator(MenuEntry[] menuEntries)
+		public ForwardsMenuIterator(MenuEntry[] menuEntries)
 		{
 			this.menuEntries = menuEntries;
 		}
@@ -1355,23 +1385,25 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 //		}
 	}
 
-	private final static class MenuReverseIterator implements Iterator<MenuEntry> {
+	final static class ReverseMenuIterator implements MenuIterator {
 		List<MenuEntry> entries = new ArrayList<>();
 		List<Integer> indexes = new ArrayList<>();
 		List<Integer> submenuIndexes = new ArrayList<>();
+		@Getter MenuEntry[] menuEntries;
 
 		int i;
-		int index;
-		int submenuIndex;
+		@Getter int index;
+		@Getter int submenuIndex;
 
-		public MenuReverseIterator(MenuEntry[] menuEntries) {
-			MenuIterator menuIterator = new MenuIterator(menuEntries);
+		public ReverseMenuIterator(MenuEntry[] menuEntries) {
+			ForwardsMenuIterator menuIterator = new ForwardsMenuIterator(menuEntries);
 			while (menuIterator.hasNext()) {
 				entries.add(menuIterator.next());
 				indexes.add(menuIterator.index);
 				submenuIndexes.add(menuIterator.submenuIndex);
 			}
 			i = entries.size() - 1;
+			this.menuEntries = menuEntries;
 		}
 
 		@Override public boolean hasNext() {
@@ -1400,7 +1432,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		int bestMenuEntrySubmenuIndex = -1;
 
 //		if (client.getGameCycle() % 50 == 0) System.out.println("menu entries:");
-		MenuReverseIterator menuIterator = new MenuReverseIterator(menuEntries);
+		MenuIterator menuIterator = new ReverseMenuIterator(menuEntries);
 		while (menuIterator.hasNext())
 		{
 			MenuEntry entry = menuIterator.next();
@@ -1416,11 +1448,11 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			String option = Text.standardize(entry.getOption());
 			String target = Text.standardize(entry.getTarget());
-			int swapIndex = matches(option, target, topEntryOption, topEntryTarget, swaps);
+			int swapIndex = matches(option, target, topEntryOption, topEntryTarget, swaps, menuIterator);
 			if (swapIndex > latestMatchingSwapIndex)
 			{
-				bestMenuEntryIndex = menuIterator.index;
-				bestMenuEntrySubmenuIndex = menuIterator.submenuIndex;
+				bestMenuEntryIndex = menuIterator.getIndex();
+				bestMenuEntrySubmenuIndex = menuIterator.getSubmenuIndex();
 
 				latestMatchingSwapIndex = swapIndex;
 //				if (client.getGameCycle() % 50 == 0) System.out.println("\t\tmatch found " + menuIterator.index + " " + menuIterator.submenuIndex);
@@ -1467,7 +1499,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		MenuEntry topEntry = menuEntries[menuEntries.length - 1];
 		String topEntryOption = Text.standardize(topEntry.getOption());
 		String topEntryTarget = Text.standardize(topEntry.getTarget());
-		MenuIterator menuIterator = new MenuIterator(menuEntries);
+		ForwardsMenuIterator menuIterator = new ForwardsMenuIterator(menuEntries);
 		while (menuIterator.hasNext())
 		{
 //			if (client.getGameCycle() % 50 == 0) System.out.println(menuIterator.index + " " + menuIterator.nextIndex + " " + menuIterator.submenu);
@@ -1493,7 +1525,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			String option = Text.standardize(entry.getOption());
 			String target = Text.standardize(entry.getTarget());
-			if (matches(option, target, topEntryOption, topEntryTarget, customHides) == -1 || isProtected(entry))
+			if (matches(option, target, topEntryOption, topEntryTarget, customHides, menuIterator) == -1 || isProtected(entry))
 			{
 				entryList.add(entry);
 			}
@@ -1505,12 +1537,12 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		return filtered.toArray(new MenuEntry[0]);
 	}
 
-	private static int matches(String entryOption, String entryTarget, String topEntryOption, String topEntryTarget, List<CustomSwap> swaps)
+	private static int matches(String entryOption, String entryTarget, String topEntryOption, String topEntryTarget, List<CustomSwap> swaps, MenuIterator iter)
 	{
 		for (int i = 0; i < swaps.size(); i++)
 		{
 			CustomSwap swap = swaps.get(i);
-			if (swap.matches(entryOption, entryTarget, topEntryOption, topEntryTarget)) {
+			if (swap.matches(entryOption, entryTarget, topEntryOption, topEntryTarget, iter)) {
 				return i;
 			}
 		}
