@@ -550,6 +550,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		hotkeyTreeRingSwap = null;
 		hotkeyMaxCapeSwap = null;
 		hotkeyBOTDSwap = null;
+		hotkeys = 0;
 		swapUse = false;
 		swapJewelleryBox = false;
 		swapPortalNexus = null;
