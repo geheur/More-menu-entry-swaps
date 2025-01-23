@@ -174,12 +174,20 @@ public class GroundItemsStuff
 
 		int getHaPrice()
 		{
-			return haPrice * quantity;
+			if (isStackable()) {
+				return haPrice * quantity;
+			} else {
+				return haPrice;
+			}
 		}
 
 		int getGePrice()
 		{
-			return gePrice * quantity;
+			if (isStackable()) {
+				return gePrice * quantity;
+			} else {
+				return gePrice;
+			}
 		}
 	}
 
