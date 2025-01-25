@@ -172,7 +172,7 @@ public class GroundItemsStuff
 		private Instant spawnTime;
 		private boolean stackable;
 
-		int getHaPrice()
+		int getTotalHAPrice()
 		{
 			if (isStackable()) {
 				return haPrice * quantity;
@@ -181,7 +181,7 @@ public class GroundItemsStuff
 			}
 		}
 
-		int getGePrice()
+		int getTotalGEPrice()
 		{
 			if (isStackable()) {
 				return gePrice * quantity;
@@ -227,7 +227,7 @@ public class GroundItemsStuff
 				break;
 		}
 
-		// log.debug("Built new ground item {}", groundItem);
+		// log.debug("Built new ground item {} | Values: IM: {} GE: {} HA: {}", groundItem, itemManager.getItemPrice(realItemId), groundItem.getTotalGEPrice(), groundItem.getTotalHAPrice());
 		return groundItem;
 	}
 

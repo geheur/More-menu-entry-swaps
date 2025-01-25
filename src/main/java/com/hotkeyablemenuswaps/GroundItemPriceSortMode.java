@@ -10,7 +10,7 @@ public enum GroundItemPriceSortMode
 			@Override
 			public Integer getItemPrice(GroundItemsStuff.GroundItem groundItem)
 			{
-				return groundItem.getHaPrice(); // Just in case,
+				return groundItem.getTotalHAPrice(); // Just in case,
 			}
 		},
 	GE_PRICE("Grand Exchange")
@@ -18,7 +18,7 @@ public enum GroundItemPriceSortMode
 			@Override
 			public Integer getItemPrice(GroundItemsStuff.GroundItem groundItem)
 			{
-				return groundItem.getGePrice();
+				return groundItem.getTotalGEPrice();
 			}
 		},
 	MAX_GE_OR_ALCH_PRICE("max(GE, High Alch)")
@@ -26,7 +26,7 @@ public enum GroundItemPriceSortMode
 			@Override
 			public Integer getItemPrice(GroundItemsStuff.GroundItem groundItem)
 			{
-				return Math.max(groundItem.getGePrice(), groundItem.getHaPrice());
+				return Math.max(groundItem.getTotalGEPrice(), groundItem.getTotalHAPrice());
 			}
 		};
 
