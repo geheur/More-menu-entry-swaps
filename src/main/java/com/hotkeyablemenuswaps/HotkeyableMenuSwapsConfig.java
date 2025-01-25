@@ -323,6 +323,18 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return Keybind.NOT_SET;
 	}
 
+	@ConfigItem(
+			keyName = "lockUnlockSlotHotkey",
+			name = "Lock/unlock-slot",
+			description = "The hotkey which, when held, lets you lock and unlock slots with left click",
+			section = bankSection,
+			position = 8
+	)
+	default Keybind lockUnlockSlotHotkey()
+	{
+		return Keybind.NOT_SET;
+	}
+
 	@ConfigSection(
 			name = "Spirit tree/Fairy ring",
 			description = "All options that swap entries on a spirit tree or fairy ring",
