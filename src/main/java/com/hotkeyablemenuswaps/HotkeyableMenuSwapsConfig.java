@@ -224,6 +224,20 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return GroundItemPriceSortMode.DISABLED;
 	}
 
+	@ConfigItem(
+		keyName = "groundItemsInventoryPriority",
+		name = "Prioritize Inventory Items",
+		description =
+			"When the inventory is full, the items will be prioritized by the following:<br>" +
+			"1. Items that exist in your inventory (sorted by your price sort mode)" +
+			"2. Default sort (sorted by your price sort mode)",
+		section = groundItemSortSection,
+		position = 4
+	)
+	default boolean groundItemsInventoryPriority() {
+		return false;
+	}
+
 	@ConfigSection(name = "Bank", description = "Swap menu entries in the bank, deposit box, seed vault, price checker interface, and chambers storage unit.", position = 0, closedByDefault = true)
 	String bankSection = "bank";
 

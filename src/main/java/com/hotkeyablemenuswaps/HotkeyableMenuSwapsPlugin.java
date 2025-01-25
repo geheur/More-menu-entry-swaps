@@ -59,7 +59,13 @@ import net.runelite.api.ItemComposition;
 import net.runelite.api.KeyCode;
 import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
-import static net.runelite.api.MenuAction.*;
+import static net.runelite.api.MenuAction.GROUND_ITEM_FIFTH_OPTION;
+import static net.runelite.api.MenuAction.PLAYER_EIGHTH_OPTION;
+import static net.runelite.api.MenuAction.PLAYER_FIRST_OPTION;
+import static net.runelite.api.MenuAction.WIDGET_TARGET;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_GROUND_ITEM;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_NPC;
+import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_PLAYER;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.FocusChanged;
@@ -73,6 +79,7 @@ import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.config.Keybind;
 import net.runelite.client.config.RuneLiteConfig;
+import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.ProfileChanged;
@@ -107,6 +114,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Inject private MenuEntrySwapperConfig menuEntrySwapperConfig;
 	@Inject private ItemManager itemManager;
 	@Inject private GroundItemsStuff groundItemsStuff;
+	@Inject private EventBus eventBus;
+	@Inject private InventoryManager inventoryManager;
 
 	// If a hotkey corresponding to a swap is currently held, these variables will be non-null. currentBankModeSwap is an exception because it uses menu entry swapper's bank swap enum, which already has an "off" value.
 	// These variables do not factor in left-click swaps.
@@ -152,6 +161,10 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 		keyManager.registerKeyListener(this);
 
+		this.inventoryManager.setWaitForGameTicks(2);
+		this.eventBus.register(this.inventoryManager);
+
+
 		examineCancelLateRemoval = config.examineCancelLateRemoval();
 
 		swapContains("venerate", "altar of the occult"::equals, "standard", () -> getCurrentOccultAltarSwap() == OccultAltarSwap.STANDARD);
@@ -187,6 +200,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Override
 	protected void shutDown() {
 		keyManager.unregisterKeyListener(this);
+		this.eventBus.unregister(this.inventoryManager);
 		groundItemsStuff.reloadGroundItemPluginLists(false, false, false, false);
 	}
 
@@ -803,8 +817,46 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			groundItemEntries.add(new MenuEntryWithValue(menuEntry, getValue(menuEntry)));
 		}
+
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+			// If a Player's inventory is full, then we should re-sort the items if we can take any of them
+			if (config.groundItemsInventoryPriority()) {
+				boolean isInventoryFull = inventoryManager.getFreeInventorySlots() == 0;
+				boolean hasRunePouchInInventory = inventoryManager.inventoryContainsRunePouch();
+				boolean isRunePickingEnabled = inventoryManager.isRunePickingEnabled();
+				boolean fullInventoryRunePouchFilter = isInventoryFull && (hasRunePouchInInventory && isRunePickingEnabled);
+				if (isInventoryFull || fullInventoryRunePouchFilter) {
+					groundItemEntries.sort((a, b) -> {
+						// Sort conditions should be the following (Knowing the list has already been sorted by price earlier):
+						// 1. Filter the sort to only include items that are in the player's inventory and it's stackable
+						// 2. If the both of the item are stackable, then sort by the value of the items
+
+						int aItemID = a.entry.getIdentifier();
+						GroundItem aGroundItem = getGroundItemFromScene(a.entry);
+						int aItemQuantity = aGroundItem.getQuantity();
+						int bItemID = b.entry.getIdentifier();
+						GroundItem bGroundItem = getGroundItemFromScene(b.entry);
+						int bItemQuantity = bGroundItem.getQuantity();
+						ItemComposition aItemComp = itemManager.getItemComposition(aItemID);
+						ItemComposition bItemComp = itemManager.getItemComposition(bItemID);
+						boolean isAFillableRune = inventoryManager.canStoreItemInRunePouch(aItemID, aItemQuantity);
+						boolean isBFillableRune = inventoryManager.canStoreItemInRunePouch(bItemID, bItemQuantity);
+						boolean didFindInventoryStackableA = aItemComp.isStackable() && (inventoryManager.inventoryContains(aItemID) || isAFillableRune);
+						boolean didFindInventoryStackableB = bItemComp.isStackable() && (inventoryManager.inventoryContains(bItemID) || isBFillableRune);
+
+//						log.debug("Ground Item A: {} ({})x{} | {} vs {} | {} && {}", aItemComp.getName(), aItemID, aItemQuantity, aGroundItem.getTotalGEPrice(), a.value, (inventoryManager.inventoryContains(aItemID) || isAFillableRune), aItemComp.isStackable());
+//						log.debug("Ground Item B: {} ({})x{} | {} vs {} | {} && {}", bItemComp.getName(), bItemID, bItemQuantity, bGroundItem.getTotalGEPrice(), b.value, (inventoryManager.inventoryContains(bItemID) || isBFillableRune), bItemComp.isStackable());
+
+						if (didFindInventoryStackableA != didFindInventoryStackableB) {
+							return Boolean.compare(didFindInventoryStackableA, didFindInventoryStackableB);
+						}
+
+						return Comparator.<MenuEntryWithValue>comparingInt(e -> e.value).compare(a, b);
+					});
+				}
+			}
+
 			for (int j = 0; j < groundItemEntries.size(); j++) {
 				// log.debug("Sorted ground item: {} with value {}", itemManager.getItemComposition(groundItemEntries.get(j).entry.getIdentifier()).getName(), groundItemEntries.get(j).value);
 				menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
