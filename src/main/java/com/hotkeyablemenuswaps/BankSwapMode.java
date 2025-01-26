@@ -21,6 +21,7 @@ enum BankSwapMode implements HotkeyableMenuSwapsPlugin.hasKeybind {
     SWAP_ALL(ShiftDepositMode.DEPOSIT_ALL, ShiftWithdrawMode.WITHDRAW_ALL, HotkeyableMenuSwapsConfig::getBankSwapAllHotkey, 7, 4),
     SWAP_ALL_BUT_1(-1, -1, -1, -1, ShiftWithdrawMode.WITHDRAW_ALL_BUT_1.getMenuAction(), ShiftWithdrawMode.WITHDRAW_ALL_BUT_1.getIdentifier(), ShiftWithdrawMode.WITHDRAW_ALL_BUT_1.getIdentifierChambersStorageUnit(), 7, 4, HotkeyableMenuSwapsConfig::getBankSwapAllBut1Hotkey),
     SWAP_EXTRA_OP(ShiftDepositMode.EXTRA_OP, ShiftWithdrawMode.OFF, HotkeyableMenuSwapsConfig::getBankSwapExtraOpHotkey),
+    LOCK_UNLOCK_SLOT(10, 10, -1, -1, ShiftWithdrawMode.OFF.getMenuAction(), -1, -1, -1, -1, HotkeyableMenuSwapsConfig::lockUnlockSlotHotkey)
     ;
 
     private final int depositIdentifier;
