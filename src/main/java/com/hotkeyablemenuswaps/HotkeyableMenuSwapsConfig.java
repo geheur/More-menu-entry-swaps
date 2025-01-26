@@ -314,7 +314,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 			keyName = "bankSwapExtraOpHotkey",
 			name = "Eat/Wield/Etc.",
-			description = "The hotkey which, when held, swaps the bank's Eat/Wield/etc. option",
+			description = "The hotkey which, when held, swaps the bank's Eat/Wield/etc. option.<br>Remember to enable this feature in the jagex bank settings (top right button in the bank).",
 			section = bankSection,
 			position = 7
 	)
@@ -326,7 +326,7 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 			keyName = "lockUnlockSlotHotkey",
 			name = "Lock/unlock-slot",
-			description = "The hotkey which, when held, lets you lock and unlock slots with left click",
+			description = "The hotkey which, when held, lets you lock and unlock slots with left click.<br>Remember to enable this feature in the jagex bank settings (top right button in the bank).",
 			section = bankSection,
 			position = 8
 	)
