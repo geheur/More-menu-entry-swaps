@@ -61,6 +61,7 @@ import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
 import static net.runelite.api.MenuAction.*;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.FocusChanged;
 import net.runelite.api.events.MenuOpened;
@@ -621,8 +622,9 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		for (int i = menuEntries.length - 1; i >= 0; --i)
 		{
 			MenuEntry entry = menuEntries[i];
+			int identifier = getMungedId(entry);
 
-			if (entry.getIdentifier() == entryIdentifier)
+			if (identifier == entryIdentifier)
 			{
 				// Raise the priority of the op so it doesn't get sorted later
 				entry.setType(MenuAction.CC_OP);
@@ -1557,5 +1559,82 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		return -1;
+	}
+
+
+	private int getMungedId(MenuEntry entry)
+	{
+		if ((entry.getType() == MenuAction.CC_OP || entry.getType() == MenuAction.CC_OP_LOW_PRIORITY))
+		{
+			return getMungedId(entry.getIdentifier(), entry.getParam1(), entry.getParam0());
+		}
+
+		return entry.getIdentifier();
+	}
+
+	private int getMungedId(int ident, int widgetId, int childIdx)
+	{
+		if (widgetId == ComponentID.BANK_ITEM_CONTAINER
+				&& childIdx >= 0
+				&& client.getVarbitValue(Varbits.BANK_ITEM_OPTIONS) != 0)
+		{
+			int delta = ident;
+			int exclude = client.getVarbitValue(Varbits.BANK_QUANTITY_TYPE);
+			if (delta == 1)
+			{
+				return 1;
+			}
+			if (exclude != 0)
+			{
+				// Withdraw-1
+				if (--delta == 1)
+				{
+					return 2;
+				}
+			}
+			if (exclude != 1)
+			{
+				// Withdraw-5
+				if (--delta == 1)
+				{
+					return 3;
+				}
+			}
+			if (exclude != 2)
+			{
+				// Withdraw-10
+				if (--delta == 1)
+				{
+					return 4;
+				}
+			}
+			if (exclude != 3 && client.getVarbitValue(Varbits.BANK_REQUESTEDQUANTITY) > 0)
+			{
+				// Withdraw-<>
+				if (--delta == 1)
+				{
+					return 5;
+				}
+			}
+			// Withdraw-X
+			if (--delta == 1)
+			{
+				return 6;
+			}
+			if (exclude != 4)
+			{
+				// Withdraw-All
+				if (--delta == 1)
+				{
+					return 7;
+				}
+			}
+			// Withdraw-All-but-1
+			if (--delta == 1)
+			{
+				return 8;
+			}
+		}
+		return ident;
 	}
 }
