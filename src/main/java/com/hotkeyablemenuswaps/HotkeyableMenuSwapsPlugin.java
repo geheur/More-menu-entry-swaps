@@ -1580,8 +1580,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	{
 		if (widgetId == ComponentID.BANK_ITEM_CONTAINER
 				&& childIdx >= 0
-				&& client.getVarbitValue(Varbits.BANK_ITEM_OPTIONS) != 0)
-		{
+		) {
 			int delta = ident;
 			int exclude = client.getVarbitValue(Varbits.BANK_QUANTITY_TYPE);
 			if (delta == 1)
