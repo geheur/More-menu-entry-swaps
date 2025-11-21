@@ -563,7 +563,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	private boolean swapBank(MenuEntry menuEntry, BankSwapMode mode)
 	{
 		MenuAction type = menuEntry.getType();
-		if (type != MenuAction.CC_OP)
+		if (type != CC_OP && type != CC_OP_LOW_PRIORITY)
 		{
 			return false;
 		}
@@ -630,7 +630,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			if (entry.getIdentifier() == entryIdentifier)
 			{
 				// Raise the priority of the op so it doesn't get sorted later
-				entry.setType(MenuAction.CC_OP);
+				entry.setType(CC_OP);
 
 				menuEntries[i] = menuEntries[menuEntries.length - 1];
 				menuEntries[menuEntries.length - 1] = entry;
@@ -1319,7 +1319,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 				// the client will open the right-click menu on left-click if the entry at the top is a CC_OP_LOW_PRIORITY.
 				if (entryToSwap.getType() == MenuAction.CC_OP_LOW_PRIORITY)
 				{
-					entryToSwap.setType(MenuAction.CC_OP);
+					entryToSwap.setType(CC_OP);
 				}
 
 				if (submenuIndex != -1) {
