@@ -1045,7 +1045,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		if (widget == null) return;
 		int spriteId = widget.getSpriteId();
 		// The disabled icon is also necessary since it's possible to cast the spell even when the icon is disabled, if you will be able to cast it on the next tick.
-		if ((spriteId != 582 && spriteId != 632) || !config.swapSpellbookSwap()) return;
+		if ((spriteId != 582 && spriteId != 632 && spriteId != 2026 && spriteId != 1976) || !config.swapSpellbookSwap()) return;
 
 		OccultAltarSwap currentSwap = this.hotkeyOccultAltarSwap;
 		if (currentSwap != null) {
