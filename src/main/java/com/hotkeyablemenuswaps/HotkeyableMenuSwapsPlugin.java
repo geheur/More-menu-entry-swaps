@@ -68,7 +68,8 @@ import net.runelite.api.events.MenuOpened;
 import net.runelite.api.events.PostMenuSort;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.widgets.ComponentID;
-import net.runelite.api.widgets.InterfaceID;
+import net.runelite.api.gameval.InterfaceID;
+import static net.runelite.api.gameval.InterfaceID.*;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetUtil;
 import net.runelite.client.config.ConfigManager;
@@ -576,11 +577,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			return false;
 		}
 
-		final int widgetGroupId = WidgetUtil.componentToInterface(menuEntry.getParam1());
-		final boolean isDepositBoxPlayerInventory = widgetGroupId == InterfaceID.DEPOSIT_BOX;
-		final boolean isChambersOfXericStorageUnitPlayerInventory = widgetGroupId == InterfaceID.CHAMBERS_OF_XERIC_INVENTORY;
-		final boolean isGroupStoragePlayerInventory = widgetGroupId == InterfaceID.GROUP_STORAGE_INVENTORY;
-		final boolean isPriceChecker = widgetGroupId == InterfaceID.GUIDE_PRICES_INVENTORY || widgetGroupId == InterfaceID.GUIDE_PRICES;
+		int wid = WidgetUtil.componentToInterface(menuEntry.getParam1());
 		// Deposit- op 1 is the current withdraw amount 1/5/10/x for deposit box interface and chambers of xeric storage unit.
 		// Deposit- op 2 is the current withdraw amount 1/5/10/x for bank interface
 		if (
@@ -589,15 +586,18 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 					|| menuEntry.getOption().startsWith("Store")
 					|| menuEntry.getOption().startsWith("Donate")
 					|| menuEntry.getOption().endsWith("-slot")
-					|| (isPriceChecker && menuEntry.getOption().startsWith("Add")))
+					|| (wid == GE_PRICECHECKER_SIDE && menuEntry.getOption().startsWith("Add")))
 		) {
-			final int opId = isDepositBoxPlayerInventory ? mode.getDepositIdentifierDepositBox()
-				: isChambersOfXericStorageUnitPlayerInventory ? mode.getDepositIdentifierChambersStorageUnit()
-				: isGroupStoragePlayerInventory ? mode.getDepositIdentifierGroupStorage()
-				: widgetGroupId == InterfaceID.SEED_VAULT_INVENTORY ? mode.getIdentifierSeedVault()
-				: isPriceChecker ? mode.getPriceCheckerIdentifier()
-				: mode.getDepositIdentifier();
-			bankModeSwap(opId);
+			if (wid == SAILING_BOAT_CARGOHOLD_SIDE || wid == FARMING_TOOLS_SIDE || wid == GE_PRICECHECKER_SIDE) {
+				bankModeSwapText(mode);
+			} else {
+				int opId = wid == BANK_DEPOSITBOX ? mode.getDepositIdentifierDepositBox()
+					: wid == RAIDS_STORAGE_SIDE ? mode.getDepositIdentifierChambersStorageUnit()
+					: wid == SHARED_BANK_SIDE ? mode.getDepositIdentifierGroupStorage()
+					: wid == SEED_VAULT_DEPOSIT ? mode.getIdentifierSeedVault()
+					: mode.getDepositIdentifier();
+				bankModeSwap(opId);
+			}
 			return true;
 		}
 
@@ -605,15 +605,21 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		if (mode != BankSwapMode.SWAP_EXTRA_OP) {
 			int opId = -1;
 			if (menuEntry.getOption().startsWith("Withdraw")) {
-				if (widgetGroupId == InterfaceID.CHAMBERS_OF_XERIC_STORAGE_UNIT_PRIVATE || widgetGroupId == InterfaceID.CHAMBERS_OF_XERIC_STORAGE_UNIT_SHARED) {
+				if (wid == RAIDS_STORAGE_PRIVATE || wid == RAIDS_STORAGE_SHARED) {
 					opId = mode.getWithdrawIdentifierChambersStorageUnit();
-				} else if (widgetGroupId == InterfaceID.SEED_VAULT) {
+				} else if (wid == InterfaceID.SEED_VAULT) {
 					opId = mode.getIdentifierSeedVault();
-				} else if (widgetGroupId == InterfaceID.BANK || widgetGroupId == InterfaceID.GROUP_STORAGE) {
+				} else if (wid == BANKMAIN || wid == SHARED_BANK) {
 					opId = mode.getWithdrawIdentifier();
+				} else if (wid == SAILING_BOAT_CARGOHOLD) {
+					bankModeSwapText(mode);
+					return true;
 				}
-			} else if (isPriceChecker && menuEntry.getOption().startsWith("Remove")) {
-				opId = mode.getPriceCheckerIdentifier();
+			} else if (menuEntry.getOption().startsWith("Remove")) {
+				if (wid == GE_PRICECHECKER || wid == FARMING_TOOLS) {
+					bankModeSwapText(mode);
+					return true;
+				}
 			}
 
 			if (opId != -1)
@@ -636,6 +642,51 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			MenuEntry entry = menuEntries[i];
 
 			if (entry.getIdentifier() == entryIdentifier)
+			{
+				// Raise the priority of the op so it doesn't get sorted later
+				entry.setType(CC_OP);
+
+				menuEntries[i] = menuEntries[menuEntries.length - 1];
+				menuEntries[menuEntries.length - 1] = entry;
+
+				client.setMenuEntries(menuEntries);
+				break;
+			}
+		}
+	}
+
+	private void bankModeSwapText(BankSwapMode mode)
+	{
+		MenuEntry[] menuEntries = client.getMenuEntries();
+
+		for (int i = menuEntries.length - 1; i >= 0; --i)
+		{
+			MenuEntry entry = menuEntries[i];
+			String option = Text.removeTags(entry.getOption());
+
+			boolean found = false;
+			switch (mode) {
+				case SWAP_ALL_BUT_1: // must be before swap-1;
+					if (option.matches(".*All-but-1$")) found = true;
+					break;
+				case SWAP_1:
+					if (option.matches(".*[^\\d]1$")) found = true;
+					break;
+				case SWAP_5:
+					if (option.matches(".*[^\\d]5$")) found = true;
+					break;
+				case SWAP_10:
+					if (option.matches(".*[^\\d]10$")) found = true;
+					break;
+				case SWAP_X:
+				case SWAP_SET_X:
+					if (option.matches(".*X$")) found = true;
+					break;
+				case SWAP_ALL:
+					if (option.matches(".*All$")) found = true;
+					break;
+			}
+			if (found)
 			{
 				// Raise the priority of the op so it doesn't get sorted later
 				entry.setType(CC_OP);
@@ -1488,7 +1539,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	{
 		MenuAction type = entry.getType();
 		if (type == WIDGET_TARGET_ON_PLAYER || type == WIDGET_TARGET_ON_NPC) {
-			if (WidgetUtil.componentToInterface(client.getSelectedWidget().getId()) == InterfaceID.SPELLBOOK) {
+			if (WidgetUtil.componentToInterface(client.getSelectedWidget().getId()) == MAGIC_SPELLBOOK) {
 				return true;
 			}
 		}
