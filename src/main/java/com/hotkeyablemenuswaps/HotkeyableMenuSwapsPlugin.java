@@ -211,6 +211,14 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		configManager.setConfiguration("hotkeyablemenuswaps", "serialVersion", 2);
+
+		String customSwapperInstructionsText = config.customSwapperInstructions();
+		if (!Boolean.parseBoolean(configManager.getConfiguration("hotkeyablemenuswaps", "updatedInstructions"))) {
+			if (!customSwapperInstructionsText.contains("https://github.com/geheur/More-menu-entry-swaps/wiki/Custom-swaps")) { // maybe someone added notes for their own use?
+				configManager.setConfiguration("hotkeyablemenuswaps", "customSwapperInstructions", "https://github.com/geheur/More-menu-entry-swaps/wiki/Custom-swaps\n\n" + customSwapperInstructionsText);
+			}
+			configManager.setConfiguration("hotkeyablemenuswaps", "updatedInstructions", true);
+		}
 	}
 
 	private OccultAltarSwap getCurrentOccultAltarSwap() {

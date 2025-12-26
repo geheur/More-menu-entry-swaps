@@ -19,7 +19,11 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	@ConfigItem(
 		keyName = "customSwaps",
 		name = "Custom swaps",
-		description = "Options to swap to the top.",
+		description = "Options to swap to the top. Each goes on its own line, separated by a newline (the enter key).\n" +
+		"Some examples:\n" +
+		"attack,bloodveld*\n" +
+		"use,cannonball -> dwarf multicannon\n" +
+		"More details available from the link under \"Instructions\"",
 		section = customSwapsSection,
 		position = 0
 	)
@@ -139,13 +143,13 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return "";
 	}
 
-	@ConfigSection(name = "Custom swap instructions", description = "instructions", position = -7, closedByDefault = true)
+	@ConfigSection(name = "Custom swap instructions", description = "", position = -7, closedByDefault = true)
 	String customSwapInstructions = "Custom swap instructions";
 
 	@ConfigItem(
 		keyName = "customSwapperInstructions",
 		name = "Instructions",
-		description = "Options to swap to the top.",
+		description = "",
 		section = customSwapInstructions,
 		position = 2
 	)
