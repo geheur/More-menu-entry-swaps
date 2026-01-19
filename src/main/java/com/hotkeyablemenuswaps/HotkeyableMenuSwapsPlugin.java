@@ -55,17 +55,13 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.InventoryID;
 import net.runelite.api.ItemComposition;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.KeyCode;
 import net.runelite.api.Menu;
 import net.runelite.api.MenuAction;
-import static net.runelite.api.MenuAction.GROUND_ITEM_FIFTH_OPTION;
-import static net.runelite.api.MenuAction.PLAYER_EIGHTH_OPTION;
-import static net.runelite.api.MenuAction.PLAYER_FIRST_OPTION;
-import static net.runelite.api.MenuAction.WIDGET_TARGET;
-import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_GROUND_ITEM;
-import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_NPC;
-import static net.runelite.api.MenuAction.WIDGET_TARGET_ON_PLAYER;
+import static net.runelite.api.MenuAction.*;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
@@ -117,7 +113,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Inject private ItemManager itemManager;
 	@Inject private GroundItemsStuff groundItemsStuff;
 	@Inject private EventBus eventBus;
-	@Inject private InventoryManager inventoryManager;
+	@Inject private RunepouchUtils runepouchUtils;
 
 	// If a hotkey corresponding to a swap is currently held, these variables will be non-null. currentBankModeSwap is an exception because it uses menu entry swapper's bank swap enum, which already has an "off" value.
 	// These variables do not factor in left-click swaps.
@@ -163,9 +159,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 		keyManager.registerKeyListener(this);
 
-		this.inventoryManager.setWaitForGameTicks(2);
-		this.eventBus.register(this.inventoryManager);
-
+		eventBus.register(runepouchUtils);
+		runepouchUtils.startUp();
 
 		examineCancelLateRemoval = config.examineCancelLateRemoval();
 
@@ -202,7 +197,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Override
 	protected void shutDown() {
 		keyManager.unregisterKeyListener(this);
-		this.eventBus.unregister(this.inventoryManager);
+		eventBus.unregister(runepouchUtils);
 		groundItemsStuff.reloadGroundItemPluginLists(false, false, false, false);
 	}
 
@@ -881,44 +876,11 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 			groundItemEntries.add(new MenuEntryWithValue(menuEntry, getValue(menuEntry)));
 		}
-
 		if (groundItemBlockStart != -1) {
 			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
 			// If a Player's inventory is full, then we should re-sort the items if we can take any of them
-			if (config.groundItemsInventoryPriority()) {
-				boolean isInventoryFull = inventoryManager.getFreeInventorySlots() == 0;
-				boolean hasRunePouchInInventory = inventoryManager.inventoryContainsRunePouch();
-				boolean isRunePickingEnabled = inventoryManager.isRunePickingEnabled();
-				boolean fullInventoryRunePouchFilter = isInventoryFull && (hasRunePouchInInventory && isRunePickingEnabled);
-				if (isInventoryFull || fullInventoryRunePouchFilter) {
-					groundItemEntries.sort((a, b) -> {
-						// Sort conditions should be the following (Knowing the list has already been sorted by price earlier):
-						// 1. Filter the sort to only include items that are in the player's inventory and it's stackable
-						// 2. If the both of the item are stackable, then sort by the value of the items
-
-						int aItemID = a.entry.getIdentifier();
-						GroundItem aGroundItem = getGroundItemFromScene(a.entry);
-						int aItemQuantity = aGroundItem.getQuantity();
-						int bItemID = b.entry.getIdentifier();
-						GroundItem bGroundItem = getGroundItemFromScene(b.entry);
-						int bItemQuantity = bGroundItem.getQuantity();
-						ItemComposition aItemComp = itemManager.getItemComposition(aItemID);
-						ItemComposition bItemComp = itemManager.getItemComposition(bItemID);
-						boolean isAFillableRune = inventoryManager.canStoreItemInRunePouch(aItemID, aItemQuantity);
-						boolean isBFillableRune = inventoryManager.canStoreItemInRunePouch(bItemID, bItemQuantity);
-						boolean didFindInventoryStackableA = aItemComp.isStackable() && (inventoryManager.inventoryContains(aItemID) || isAFillableRune);
-						boolean didFindInventoryStackableB = bItemComp.isStackable() && (inventoryManager.inventoryContains(bItemID) || isBFillableRune);
-
-//						log.debug("Ground Item A: {} ({})x{} | {} vs {} | {} && {}", aItemComp.getName(), aItemID, aItemQuantity, aGroundItem.getTotalGEPrice(), a.value, (inventoryManager.inventoryContains(aItemID) || isAFillableRune), aItemComp.isStackable());
-//						log.debug("Ground Item B: {} ({})x{} | {} vs {} | {} && {}", bItemComp.getName(), bItemID, bItemQuantity, bGroundItem.getTotalGEPrice(), b.value, (inventoryManager.inventoryContains(bItemID) || isBFillableRune), bItemComp.isStackable());
-
-						if (didFindInventoryStackableA != didFindInventoryStackableB) {
-							return Boolean.compare(didFindInventoryStackableA, didFindInventoryStackableB);
-						}
-
-						return Comparator.<MenuEntryWithValue>comparingInt(e -> e.value).compare(a, b);
-					});
-				}
+			if (config.stackablesWhenFull()) {
+				sortStackablesWhenFull(groundItemEntries);
 			}
 
 			for (int j = 0; j < groundItemEntries.size(); j++) {
@@ -927,6 +889,46 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		client.setMenuEntries(menuEntries);
+	}
+
+	private void sortStackablesWhenFull(List<MenuEntryWithValue> groundItemEntries)
+	{
+		ItemContainer inventory = client.getItemContainer(InventoryID.INVENTORY);
+		boolean isInventoryFull = inventory.count() == 28;
+		if (isInventoryFull) {
+			boolean hasRunePouch = runepouchUtils.inventoryContainsRunePouch(inventory);
+			boolean isRunePickingEnabled = client.getVarbitValue(5698) == 1;
+			boolean checkRunePouch = hasRunePouch && isRunePickingEnabled;
+			groundItemEntries.sort((a, b) -> {
+				// Sort conditions should be the following (Knowing the list has already been sorted by price earlier):
+				// 1. Filter the sort to only include items that are in the player's inventory and it's stackable
+				// 2. If the both of the item are stackable, then sort by the value of the items
+
+				int aItemID = a.entry.getIdentifier();
+				int bItemID = b.entry.getIdentifier();
+				ItemComposition aItemComp = itemManager.getItemComposition(aItemID);
+				ItemComposition bItemComp = itemManager.getItemComposition(bItemID);
+
+				boolean aSort = false;
+				if (aItemComp.isStackable()) {
+					aSort = inventory.contains(aItemID);
+					if (!aSort && checkRunePouch && runepouchUtils.isItemARune(aItemID)) {
+						int quantity = getGroundItemFromScene(a.entry).getQuantity();
+						aSort |= runepouchUtils.canStoreItemInRunePouch(aItemID, quantity);
+					}
+				}
+				boolean bSort = false;
+				if (bItemComp.isStackable()) {
+					bSort = inventory.contains(bItemID);
+					if (!bSort && checkRunePouch && runepouchUtils.isItemARune(bItemID)) {
+						int quantity = getGroundItemFromScene(b.entry).getQuantity();
+						bSort |= runepouchUtils.canStoreItemInRunePouch(bItemID, quantity);
+					}
+				}
+
+				return Boolean.compare(aSort, bSort);
+			});
+		}
 	}
 
 	private int getValue(MenuEntry menuEntry)

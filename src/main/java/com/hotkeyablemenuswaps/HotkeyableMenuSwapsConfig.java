@@ -229,16 +229,13 @@ public interface HotkeyableMenuSwapsConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "groundItemsInventoryPriority",
-		name = "Prioritize Inventory Items",
-		description =
-			"When the inventory is full, the items will be prioritized by the following:<br>" +
-			"1. Items that exist in your inventory (sorted by your price sort mode)" +
-			"2. Default sort (sorted by your price sort mode)",
+		keyName = "stackablesWhenFull",
+		name = "Stackables when full",
+		description = "Prioritize stackable items already in your inventory when your inventory is full",
 		section = groundItemSortSection,
 		position = 4
 	)
-	default boolean groundItemsInventoryPriority() {
+	default boolean stackablesWhenFull() {
 		return false;
 	}
 
