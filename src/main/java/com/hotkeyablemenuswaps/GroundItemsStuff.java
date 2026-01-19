@@ -172,7 +172,7 @@ public class GroundItemsStuff
 		private Instant spawnTime;
 		private boolean stackable;
 
-		int getTotalHAPrice()
+		int getHaPrice()
 		{
 			if (isStackable()) {
 				return haPrice * quantity;
@@ -181,7 +181,7 @@ public class GroundItemsStuff
 			}
 		}
 
-		int getTotalGEPrice()
+		int getGePrice()
 		{
 			if (isStackable()) {
 				return gePrice * quantity;
