@@ -228,6 +228,17 @@ public interface HotkeyableMenuSwapsConfig extends Config
 		return GroundItemPriceSortMode.DISABLED;
 	}
 
+	@ConfigItem(
+		keyName = "stackablesWhenFull",
+		name = "Stackables when full",
+		description = "Prioritize stackable items already in your inventory when your inventory is full",
+		section = groundItemSortSection,
+		position = 4
+	)
+	default boolean stackablesWhenFull() {
+		return false;
+	}
+
 	@ConfigSection(name = "Bank", description = "Swap menu entries in the bank, deposit box, seed vault, price checker interface, and chambers storage unit.", position = 0, closedByDefault = true)
 	String bankSection = "bank";
 

@@ -227,7 +227,7 @@ public class GroundItemsStuff
 				break;
 		}
 
-		// log.debug("Built new ground item {}", groundItem);
+		// log.debug("Built new ground item {} | Values: IM: {} GE: {} HA: {}", groundItem, itemManager.getItemPrice(realItemId), groundItem.getTotalGEPrice(), groundItem.getTotalHAPrice());
 		return groundItem;
 	}
 
