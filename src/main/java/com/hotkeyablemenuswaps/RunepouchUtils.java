@@ -7,12 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
 import net.runelite.api.EnumID;
-import net.runelite.api.GameState;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.ItemID;
 import net.runelite.api.Varbits;
-import net.runelite.api.events.GameStateChanged;
-import net.runelite.client.eventbus.Subscribe;
 
 @Slf4j
 public class RunepouchUtils
@@ -23,18 +20,7 @@ public class RunepouchUtils
 
 	public void startUp()
 	{
-		if (client.getGameState().getState() >= GameState.LOGIN_SCREEN.getState()) {
-			createRuneIDItemIDBiMap();
-		}
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-		if (gameStateChanged.getGameState() == GameState.LOGGING_IN || gameStateChanged.getGameState() == GameState.HOPPING)
-		{
-			createRuneIDItemIDBiMap();
-		}
+		createRuneIDItemIDBiMap();
 	}
 
 	public boolean inventoryContainsRunePouch(ItemContainer inventory)
