@@ -1612,7 +1612,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		if (type == MenuAction.NPC_FOURTH_OPTION || type == MenuAction.NPC_FIFTH_OPTION) {
 			if (entry.getNpc() != null) {
 				String[] actions = entry.getNpc().getTransformedComposition().getActions();
-				if ("Lure".equals(actions[3]) || "Knock-out".equals(actions[4])) {
+				if (actions.length >= 4 && "Lure".equals(actions[3]) || actions.length >= 5 && "Knock-Out".equals(actions[4])) {
 					return true;
 				}
 			}
