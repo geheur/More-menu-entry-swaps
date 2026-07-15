@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.EnumComposition;
 import net.runelite.api.EnumID;
+import net.runelite.api.GameState;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.ItemID;
 import net.runelite.api.Varbits;
@@ -17,11 +18,6 @@ public class RunepouchUtils
 	@Inject private Client client;
 
 	BiMap<Integer, Integer> runeIDItemIDBiMap;
-
-	public void startUp()
-	{
-		createRuneIDItemIDBiMap();
-	}
 
 	public boolean inventoryContainsRunePouch(ItemContainer inventory)
 	{
@@ -45,12 +41,17 @@ public class RunepouchUtils
 
 	public boolean isItemARune(int itemID)
 	{
-		return runeIDItemIDBiMap.inverse().containsKey(itemID);
+		createRuneIDItemIDBiMap();
+		return runeIDItemIDBiMap != null && runeIDItemIDBiMap.inverse().containsKey(itemID);
 	}
 
+	// Builds the map lazily on the client thread once the client is logged in. Building it eagerly at
+	// plugin startup NPEs at the login screen because client.getEnum requires the game's enum cache,
+	// which is not loaded before login.
 	private void createRuneIDItemIDBiMap()
 	{
 		if (runeIDItemIDBiMap != null) return;
+		if (client.getGameState() != GameState.LOGGED_IN) return;
 		// getIntVals starts at index=1 -> Rune pouch rune starts from 1 and goes to n (22 runes)
 		EnumComposition ec = client.getEnum(EnumID.RUNEPOUCH_RUNE);
 		int[] runeIDs = ec.getKeys();
@@ -64,6 +65,7 @@ public class RunepouchUtils
 
 	public int getItemIDFromRuneID(int runeID)
 	{
-		return runeIDItemIDBiMap.getOrDefault(runeID, -1);
+		createRuneIDItemIDBiMap();
+		return runeIDItemIDBiMap == null ? -1 : runeIDItemIDBiMap.getOrDefault(runeID, -1);
 	}
 }
