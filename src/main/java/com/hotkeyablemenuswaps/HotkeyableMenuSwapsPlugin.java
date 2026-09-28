@@ -32,6 +32,7 @@ import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
+import com.google.inject.util.Providers;
 import static com.hotkeyablemenuswaps.GroundItemPriceSortMode.DISABLED;
 import com.hotkeyablemenuswaps.GroundItemsStuff.GroundItem;
 import com.hotkeyablemenuswaps.GroundItemsStuff.NamedQuantity;
@@ -85,12 +86,11 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
-import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperConfig;
-import net.runelite.client.plugins.menuentryswapper.MenuEntrySwapperPlugin;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.tuple.Pair;
+import com.google.inject.Module;
 
 // TODO when you press a key, then press and release a different key, the original key is no longer used for the keybind.
 // Also, modifier keys cannot be activated if they are pressed when the client does not have focus, which is annoying.
@@ -101,7 +101,6 @@ import org.apache.commons.lang3.tuple.Pair;
 	name = "Custom Menu Swaps",
 	tags = {"entry", "swapper", "custom", "text"}
 )
-@PluginDependency(MenuEntrySwapperPlugin.class)
 @Slf4j
 public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 {
@@ -109,7 +108,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@Inject private HotkeyableMenuSwapsConfig config;
 	@Inject private KeyManager keyManager;
 	@Inject private ConfigManager configManager;
-	@Inject private MenuEntrySwapperConfig menuEntrySwapperConfig;
+//	@Inject private MenuEntrySwapperConfig menuEntrySwapperConfig;
 	@Inject private ItemManager itemManager;
 	@Inject private GroundItemsStuff groundItemsStuff;
 	@Inject private EventBus eventBus;
@@ -249,11 +248,13 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 	private boolean vanillaJewelleryBoxSwapEnabled()
 	{
-		return (boolean) configManager.getConfiguration(RuneLiteConfig.GROUP_NAME, "menuentryswapperplugin", Boolean.class) && menuEntrySwapperConfig.swapJewelleryBox();
+		MenuEntrySwapperConfig config = configManager.getConfig(MenuEntrySwapperConfig.class);
+		return (boolean) configManager.getConfiguration(RuneLiteConfig.GROUP_NAME, "menuentryswapperplugin", Boolean.class) && config.swapJewelleryBox();
 	}
 
 	private boolean vanillaPortalNexusSwapEnabled() {
-		return (boolean) configManager.getConfiguration(RuneLiteConfig.GROUP_NAME, "menuentryswapperplugin", Boolean.class) && menuEntrySwapperConfig.swapPortalNexus();
+		MenuEntrySwapperConfig config = configManager.getConfig(MenuEntrySwapperConfig.class);
+		return (boolean) configManager.getConfiguration(RuneLiteConfig.GROUP_NAME, "menuentryswapperplugin", Boolean.class) && config.swapPortalNexus();
 	}
 
 	/**
@@ -1671,5 +1672,15 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			}
 		}
 		return -1;
+	}
+
+	@Override
+	protected Module getPublicModule()
+	{
+		return binder ->
+		{
+			binder.bind(HotkeyableMenuSwapsPlugin.class).toProvider(Providers.of(this));
+			binder.bind(HotkeyableMenuSwapsConfig.class).toProvider(Providers.of(config));
+		};
 	}
 }
