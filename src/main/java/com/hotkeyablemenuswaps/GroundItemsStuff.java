@@ -165,23 +165,23 @@ public class GroundItemsStuff
 		private WorldPoint location;
 		private int height;
 		private int haPrice;
-		private int gePrice;
+		private long gePrice;
 		private int offset;
 		private boolean tradeable;
 		@Nullable
 		private Instant spawnTime;
 		private boolean stackable;
 
-		int getHaPrice()
+		long getHaPrice()
 		{
 			if (isStackable()) {
-				return haPrice * quantity;
+				return (long) haPrice * quantity;
 			} else {
 				return haPrice;
 			}
 		}
 
-		int getGePrice()
+		long getGePrice()
 		{
 			if (isStackable()) {
 				return gePrice * quantity;

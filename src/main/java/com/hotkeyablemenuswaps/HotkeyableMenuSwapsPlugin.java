@@ -838,7 +838,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	@RequiredArgsConstructor
 	private static class MenuEntryWithValue {
 		private final MenuEntry entry;
-		private final int value;
+		private final long value;
 	}
 
 	private void sortGroundItems()
@@ -857,7 +857,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			// menu entry is not a ground item menu entry. This may be the end of a take menu entry block, so sort any take menu entries that have been collected so far.
 			if (menuEntry.getType().getId() < WIDGET_TARGET_ON_GROUND_ITEM.getId() || menuEntry.getType().getId() > GROUND_ITEM_FIFTH_OPTION.getId()) {
 				if (groundItemBlockStart != -1) {
-					groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+					groundItemEntries.sort(Comparator.comparingLong(e -> e.value));
 					for (int j = 0; j < groundItemEntries.size(); j++) {
 						menuEntries[groundItemBlockStart + j] = groundItemEntries.get(j).entry;
 					}
@@ -873,7 +873,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 			groundItemEntries.add(new MenuEntryWithValue(menuEntry, getValue(menuEntry)));
 		}
 		if (groundItemBlockStart != -1) {
-			groundItemEntries.sort(Comparator.comparingInt(e -> e.value));
+			groundItemEntries.sort(Comparator.comparingLong(e -> e.value));
 			// If a Player's inventory is full, then we should re-sort the items if we can take any of them
 			if (config.stackablesWhenFull()) {
 				sortStackablesWhenFull(groundItemEntries);
@@ -927,7 +927,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		}
 	}
 
-	private int getValue(MenuEntry menuEntry)
+	private long getValue(MenuEntry menuEntry)
 	{
 		int itemId = menuEntry.getIdentifier();
 		ItemComposition itemComposition = itemManager.getItemComposition(itemId);
