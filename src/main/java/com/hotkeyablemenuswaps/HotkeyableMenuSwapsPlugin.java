@@ -797,7 +797,11 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 	public void onPostMenuSort(PostMenuSort e)
 	{
 		sortGroundItems();
-		customSwaps();
+
+		customFiltering();
+
+		boolean swappedSomething = customSwaps();
+		if (swappedSomething) return;
 
 		MenuEntry[] menuEntries = client.getMenuEntries();
 
@@ -1382,80 +1386,84 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 		return client.isKeyPressed(KeyCode.KC_SHIFT);
 	}
 
-	public void customSwaps()
-	{
+	public void customFiltering() {
 		MenuEntry[] menuEntries = client.getMenuEntries();
 		if (menuEntries.length == 0) return;
 
 		menuEntries = filterEntries(menuEntries, false);
-		client.setMenuEntries(menuEntries);
 		int topEntryIndex = menuEntries.length - 1;
-		if (topEntryIndex == -1) { // The filtering removed all the menu options. No swaps can happen, so return early.
-			return;
-		}
 		MenuEntry topEntry = menuEntries[topEntryIndex];
 		if (mayNotBeLeftClick(topEntry)) {
 			return;
 		}
+		client.setMenuEntries(menuEntries);
+	}
 
-		List<CustomSwap> swaps = shiftModifier() ? customShiftSwaps : customSwaps;
+	public boolean customSwaps()
+	{
+		MenuEntry[] menuEntries = client.getMenuEntries();
+		if (menuEntries.length == 0) return false;
+
+		Pair<Integer, Integer> p = null;
+		// hotkey swaps are higher priority than other swaps, so check those first.
 		if (hotkeys > 0)
 		{
-			List<CustomSwap> temp = swaps;
-			swaps = new ArrayList<>();
-			swaps.addAll(temp);
+			List<CustomSwap> hotkeySwaps = new ArrayList<>();
 			for (int i = 0; i < HOTKEY_COUNT; i++)
 			{
 				if ((hotkeys & (1L << i)) > 0)
 				{
-					swaps.addAll(customHotkeySwaps[i]);
+					hotkeySwaps.addAll(customHotkeySwaps[i]);
 				}
 			}
+			p = getEntryIndexToSwap(menuEntries, hotkeySwaps);
 		}
-		var p = getEntryIndexToSwap(menuEntries, swaps);
+		if (p == null) {
+			List<CustomSwap> swaps = shiftModifier() ? customShiftSwaps : customSwaps;
+			p = getEntryIndexToSwap(menuEntries, swaps);
+		}
+
+		if (p == null) return false;
+
 		int index = p.getLeft();
 		int submenuIndex = p.getRight();
-		if (index >= 0)
-		{
-			MenuEntry entryToSwap = submenuIndex != -1
-				? menuEntries[index].getSubMenu().getMenuEntries()[submenuIndex]
-				: menuEntries[index];
-			if (isProtected(topEntry) || isProtected(entryToSwap)) {
-				return;
-			}
-
-			boolean doNotSwapOverMinimapOrbs = topEntry.getWidget() != null && WidgetUtil.componentToInterface(topEntry.getWidget().getId()) == 160 && entryToSwap.getWidget() == null && config.doNotSwapOverMinimapOrbs();
-			if (!doNotSwapOverMinimapOrbs && (topEntryIndex > index || submenuIndex != -1)) {
-				// the client will open the right-click menu on left-click if the entry at the top is a CC_OP_LOW_PRIORITY.
-				if (entryToSwap.getType() == MenuAction.CC_OP_LOW_PRIORITY)
-				{
-					entryToSwap.setType(CC_OP);
-				}
-
-				if (submenuIndex != -1) {
-//					Menu submenu = menuEntries[index].getSubMenu();
-//					MenuEntry[] entries = submenu.getMenuEntries();
-//					entryToSwap = entries[submenuIndex];
-//					entries[submenuIndex] = topEntry;
-//					submenu.setMenuEntries(entries);
-					client.getMenu()
-						.createMenuEntry(-1)
-						.setIdentifier(entryToSwap.getIdentifier())
-						.setOption(entryToSwap.getOption())
-						.setTarget(entryToSwap.getTarget())
-						.setParam0(entryToSwap.getParam0())
-						.setParam1(entryToSwap.getParam1())
-						.setItemId(entryToSwap.getItemId())
-						.setType(entryToSwap.getType())
-						.setWorldViewId(entryToSwap.getWorldViewId())
-						.onClick(entryToSwap.onClick());
-				} else {
-					menuEntries[index] = topEntry;
-					menuEntries[topEntryIndex] = entryToSwap;
-					client.setMenuEntries(menuEntries);
-				}
-			}
+		MenuEntry entryToSwap = submenuIndex != -1
+			? menuEntries[index].getSubMenu().getMenuEntries()[submenuIndex]
+			: menuEntries[index];
+		int topEntryIndex = menuEntries.length - 1;
+		MenuEntry topEntry = menuEntries[topEntryIndex];
+		if (isProtected(topEntry) || isProtected(entryToSwap)) {
+			return false;
 		}
+
+		boolean doNotSwapOverMinimapOrbs = topEntry.getWidget() != null && WidgetUtil.componentToInterface(topEntry.getWidget().getId()) == 160 && entryToSwap.getWidget() == null && config.doNotSwapOverMinimapOrbs();
+		if (doNotSwapOverMinimapOrbs || (topEntryIndex <= index && submenuIndex == -1)) return false;
+
+		// the client will open the right-click menu on left-click if the entry at the top is a CC_OP_LOW_PRIORITY.
+		if (entryToSwap.getType() == MenuAction.CC_OP_LOW_PRIORITY)
+		{
+			entryToSwap.setType(CC_OP);
+		}
+
+		if (submenuIndex != -1) {
+			client.getMenu()
+				.createMenuEntry(-1)
+				.setIdentifier(entryToSwap.getIdentifier())
+				.setOption(entryToSwap.getOption())
+				.setTarget(entryToSwap.getTarget())
+				.setParam0(entryToSwap.getParam0())
+				.setParam1(entryToSwap.getParam1())
+				.setItemId(entryToSwap.getItemId())
+				.setType(entryToSwap.getType())
+				.setWorldViewId(entryToSwap.getWorldViewId())
+				.onClick(entryToSwap.onClick());
+		} else {
+			menuEntries[index] = topEntry;
+			menuEntries[topEntryIndex] = entryToSwap;
+			client.setMenuEntries(menuEntries);
+		}
+
+		return true;
 	}
 
 	private interface MenuIterator extends Iterator<MenuEntry> {
@@ -1583,7 +1591,8 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 //				if (client.getGameCycle() % 50 == 0) System.out.println("\t\tmatch found " + menuIterator.index + " " + menuIterator.submenuIndex);
 			}
 		}
-		return Pair.of(bestMenuEntryIndex, bestMenuEntrySubmenuIndex);
+		if (bestMenuEntryIndex == -1) return null;
+		else return Pair.of(bestMenuEntryIndex, bestMenuEntrySubmenuIndex);
 	}
 
 	private boolean isProtected(MenuEntry entry)
