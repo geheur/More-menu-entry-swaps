@@ -800,8 +800,7 @@ public class HotkeyableMenuSwapsPlugin extends Plugin implements KeyListener
 
 		customFiltering();
 
-		boolean swappedSomething = customSwaps();
-		if (swappedSomething) return;
+		customSwaps();
 
 		MenuEntry[] menuEntries = client.getMenuEntries();
 
